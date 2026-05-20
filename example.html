@@ -258,6 +258,32 @@
       top: auto;
       transform: none;
     }
+    /* Narrow embed viewports — the modal's fixed 425px layout
+       won't fit the iframe width on mobile, so visually scale the
+       whole modal down via transform around its centre. The flex
+       layout box still measures 425×389 (rewriting every absolutely
+       positioned child for fluid widths would be a much bigger job
+       and would break the pixel-perfect Figma layout) but overflow:
+       hidden on body + modal-root contains the oversized box
+       cleanly. Threshold is 457px — the modal's 425px plus the
+       requested 16px breathing room on each side; above that the
+       modal renders at full 1:1 scale. Scale floor of 0.5 stops
+       the modal from collapsing into illegibility on absurdly
+       narrow embeds. */
+    @media (max-width: 457px) {
+      body[data-embed="true"] { overflow: hidden; }
+      body[data-embed="true"] .modal-root { overflow: hidden; }
+      body[data-embed="true"] .modal-card {
+        /* 32px subtracted from 100vw → 16px margin on each side
+           between the scaled modal and the iframe edge. Dividing
+           by 425px (a length, not the unitless 425) so the calc
+           collapses length/length → unitless ratio that scale()
+           accepts. clamp() pins the ratio between 0.5 (illegibility
+           floor) and 1 (so the modal never up-scales past native). */
+        transform: scale(clamp(0.5, calc((100vw - 32px) / 425px), 1));
+        transform-origin: center center;
+      }
+    }
 
     /* "Generic AI output" style — strip all of the calibrated
        motion (icon swap, text swap, modal open, success check,
@@ -1249,10 +1275,19 @@
        "with skill" pane.
        ────────────────────────────────────────────────────────────── */
 
-    /* Menu dropdown (05-menu-dropdown.md) */
+    /* Menu dropdown (05-menu-dropdown.md).
+       Every transform value below carries a trailing translateZ(0)
+       to pre-promote the compositor layer. Safari has a long-
+       standing quirk where box-shadow on a scale-animated element
+       is painted lazily — the shadow snaps in ~150-200 ms after
+       the open animation starts, because WebKit defers the layer's
+       paint (including its baked-in shadow) until the transform
+       settles. translateZ(0) forces the layer to be created with
+       paint ready from frame 1, so the shadow rides in with the
+       rest of the dropdown. */
     .t-dropdown {
       transform-origin: top left;
-      transform: scale(var(--dropdown-pre-scale));
+      transform: scale(var(--dropdown-pre-scale)) translateZ(0);
       opacity: 0;
       pointer-events: none;
       transition:
@@ -1266,12 +1301,12 @@
     .t-dropdown[data-origin="bottom-center"] { transform-origin: bottom center; }
     .t-dropdown[data-origin="bottom-right"]  { transform-origin: bottom right; }
     .t-dropdown.is-open {
-      transform: scale(1);
+      transform: scale(1) translateZ(0);
       opacity: 1;
       pointer-events: auto;
     }
     .t-dropdown.is-closing {
-      transform: scale(var(--dropdown-closing-scale));
+      transform: scale(var(--dropdown-closing-scale)) translateZ(0);
       opacity: 0;
       pointer-events: none;
       transition:
@@ -2141,6 +2176,18 @@
     }
 
     let publishStageTimer = null;
+    // Pending text-entry timers from phase 2 of setPublished. Tracked
+    // so resetPublishState can cancel them — otherwise a reset that
+    // lands between the mid-phase swap and the staggered text entry
+    // would let those callbacks ghost-animate the now-unpublished
+    // title / copy moments after the snap.
+    let publishTextTimers = [];
+    function clearPublishTextTimers() {
+      for (let i = 0; i < publishTextTimers.length; i++) {
+        clearTimeout(publishTextTimers[i]);
+      }
+      publishTextTimers.length = 0;
+    }
     function setPublished(next) {
       if (publishedFlag === next) return;
       publishedFlag = next;
@@ -2202,24 +2249,24 @@
           // rise direction is flipped inside .publish-center (see
           // the matching CSS override) so the new texts come up
           // from below instead of falling down from above.
-          setTimeout(() => runTextSwapEntry(publishTitle),
-            TEXT_REENTER_DELAY_MS);
-          setTimeout(() => runTextSwapEntry(publishCopy),
-            TEXT_REENTER_DELAY_MS + SECONDARY_TEXT_DELAY_MS);
+          publishTextTimers.push(setTimeout(() => runTextSwapEntry(publishTitle),
+            TEXT_REENTER_DELAY_MS));
+          publishTextTimers.push(setTimeout(() => runTextSwapEntry(publishCopy),
+            TEXT_REENTER_DELAY_MS + SECONDARY_TEXT_DELAY_MS));
         } else {
           // Unpublish direction — no rise. Just drop .is-fading on
           // each element so the plain t-fade-blur cross-fade owns
           // the entry (opacity 0 → 1, blur 2 px → 0, in place).
           // Same title-first / copy-after stagger as the publish
           // direction for visual consistency.
-          setTimeout(() => {
+          publishTextTimers.push(setTimeout(() => {
             void publishTitle.offsetHeight;
             publishTitle.classList.remove('is-fading');
-          }, TEXT_REENTER_DELAY_MS);
-          setTimeout(() => {
+          }, TEXT_REENTER_DELAY_MS));
+          publishTextTimers.push(setTimeout(() => {
             void publishCopy.offsetHeight;
             publishCopy.classList.remove('is-fading');
-          }, TEXT_REENTER_DELAY_MS + SECONDARY_TEXT_DELAY_MS);
+          }, TEXT_REENTER_DELAY_MS + SECONDARY_TEXT_DELAY_MS));
         }
       }, publishTextDur);
     }
@@ -2532,10 +2579,45 @@
       applyTheme(next);
     });
 
+    /* Hard-snap the publish flow back to the unpublished baseline,
+       bypassing every transition. Used by the host page when the
+       compare toggle flips, so each side of the comparison starts
+       from the same clean state regardless of what the user did
+       last time. Safe to call when already unpublished — every step
+       is idempotent.
+         1. Cancel any in-flight mid-phase timer so the swap doesn't
+            land seconds after we've snapped the state away.
+         2. Clear any inline badge fade-out styles left behind from
+            a mid-unpublish call (opacity / filter / transform /
+            translate / transition all wiped via clearBadgeFade).
+         3. Strip the transient text-swap / fade-blur classes so
+            the title + copy + button aren't stuck mid-pose.
+         4. Snap content, data-published, and the badge data-state. */
+    function resetPublishState() {
+      if (publishStageTimer) {
+        clearTimeout(publishStageTimer);
+        publishStageTimer = null;
+      }
+      clearPublishTextTimers();
+      clearBadgeFade();
+      [publishTitle, publishCopy, publishBtn].forEach((el) => {
+        el.classList.remove('is-fading', 'is-enter-start', 'is-exit');
+      });
+      publishedFlag = false;
+      publishCenter.dataset.published = 'false';
+      publishTitle.textContent = COPY_PUBLISH;
+      publishCopy.textContent  = BODY_PUBLISH;
+      publishBtn.textContent   = 'Publish';
+      publishedBadge.setAttribute('data-state', 'out');
+    }
+
     /* ──────────────────────────────────────────────────────────────
        Embed mode — initialise on load. Sets the body data flag,
-       picks up initial theme from ?theme=, and listens for theme
-       updates via postMessage from the host page.
+       picks up initial theme from ?theme=, and listens for both
+       theme updates AND reset-publish requests via postMessage
+       from the host page (skill.html fires reset-publish when its
+       compare toggle flips so the two sides start from the same
+       baseline).
        ────────────────────────────────────────────────────────────── */
     (function initEmbed() {
       const params = new URLSearchParams(window.location.search);
@@ -2549,8 +2631,12 @@
       }
       window.addEventListener('message', (event) => {
         const data = event.data;
-        if (!data || data.type !== 'theme') return;
-        if (data.theme === 'dark' || data.theme === 'light') applyTheme(data.theme);
+        if (!data) return;
+        if (data.type === 'theme') {
+          if (data.theme === 'dark' || data.theme === 'light') applyTheme(data.theme);
+        } else if (data.type === 'reset-publish') {
+          resetPublishState();
+        }
       });
     })();
 
