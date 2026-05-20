@@ -547,6 +547,13 @@
       display: inline-block;
       color: inherit;
     }
+    /* Dim the placeholder "—" while the GitHub stars API call is
+       in flight so the row doesn't visually "pop" wider when the
+       real count arrives. JS removes the attribute on success
+       and on the catch fallback. */
+    .icon-btn-pill[data-loading="true"] .pill-label {
+      opacity: 0.5;
+    }
 
     /* Mirrors the P5 "Icon swap" prototype architecture: both icons
        live permanently in the DOM stacked on top of each other, and
@@ -2335,9 +2342,13 @@
       .app { padding: 0 20px 48px; }
       .top-bar { right: 20px; top: 12px; }
       /* On phones the Skill pill collapses to a 36px icon so the
-         row doesn't get crowded next to the theme/GitHub/X icons. */
+         row doesn't get crowded next to the theme/GitHub/X icons.
+         The GitHub stars pill keeps its label so the live star
+         count stays visible — that's the metric people came for. */
       .icon-btn-pill .pill-label { display: none; }
       .icon-btn-pill { width: 36px; padding: 0; min-width: 36px; }
+      #gh-stars-btn .pill-label { display: inline-block; }
+      #gh-stars-btn { width: auto; padding: 0 12px; }
       .header {
         height: auto;
         min-height: 180px;
@@ -2795,16 +2806,23 @@
           />
         </span>
       </button>
+      <!-- GitHub pill — same component as on /skill, shows live
+           stargazer count fetched once per session from the public
+           GitHub API. Falls back silently to "Star" on network /
+           rate-limit errors so the link itself always works. -->
       <a
-        class="icon-btn"
+        class="icon-btn-pill"
+        id="gh-stars-btn"
         href="https://github.com/Jakubantalik/transitions.dev"
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="GitHub"
+        aria-label="GitHub repository — star count"
+        data-loading="true"
       >
-        <svg aria-hidden="true" viewBox="0 0 16 16">
+        <svg aria-hidden="true" viewBox="0 0 16 16" fill="currentColor">
           <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
         </svg>
+        <span class="pill-label" id="gh-stars-count">—</span>
       </a>
       <a
         class="icon-btn"
@@ -5457,6 +5475,73 @@ function readMs(name, fallback) {
           document.body.removeChild(ta);
           if (onDone) onDone();
         } catch (e) {}
+      }
+    })();
+  </script>
+
+  <script>
+    /* ── Live GitHub stars on the top-bar pill ─────────────────
+       Fetches the repo's stargazer count from the public API
+       (anon, ~60 req/hr/IP — plenty for a single page visit).
+       Cached in sessionStorage so soft-navigations within the
+       same tab don't re-hit the API and so users on flaky
+       networks don't see the placeholder flash. Falls back
+       silently to "Star" on network / rate-limit errors — the
+       link itself always works. Mirrors the same pill on
+       /skill so both pages share the cache key. */
+    (function () {
+      var STAR_CACHE_KEY = "tdev:gh-stars";
+      var STAR_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+      var pill = document.getElementById("gh-stars-btn");
+      var countEl = document.getElementById("gh-stars-count");
+      if (!pill || !countEl) return;
+
+      function formatStars(n) {
+        if (n == null || !Number.isFinite(n)) return "";
+        if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "") + "k";
+        return String(n);
+      }
+
+      function paintStars(n) {
+        countEl.textContent = formatStars(n);
+        pill.removeAttribute("data-loading");
+        pill.setAttribute(
+          "aria-label",
+          "GitHub repository — " + (n === 1 ? "1 star" : n + " stars")
+        );
+      }
+
+      try {
+        var cached = sessionStorage.getItem(STAR_CACHE_KEY);
+        if (cached) {
+          var parsed = JSON.parse(cached);
+          if (parsed && Date.now() - parsed.t < STAR_CACHE_TTL && Number.isFinite(parsed.n)) {
+            paintStars(parsed.n);
+          }
+        }
+      } catch (e) {}
+
+      if (window.fetch) {
+        fetch("https://api.github.com/repos/Jakubantalik/transitions.dev", {
+          headers: { Accept: "application/vnd.github+json" }
+        })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) {
+            if (!data || !Number.isFinite(data.stargazers_count)) return;
+            paintStars(data.stargazers_count);
+            try {
+              sessionStorage.setItem(
+                STAR_CACHE_KEY,
+                JSON.stringify({ n: data.stargazers_count, t: Date.now() })
+              );
+            } catch (e) {}
+          })
+          .catch(function () {
+            if (pill.hasAttribute("data-loading")) {
+              countEl.textContent = "Star";
+              pill.removeAttribute("data-loading");
+            }
+          });
       }
     })();
   </script>
