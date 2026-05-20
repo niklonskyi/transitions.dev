@@ -237,18 +237,17 @@
        flow so its container can size it.
        ────────────────────────────────────────────────────────────── */
     body[data-embed="true"] {
-      /* Match skill.html page body in light/dark — not --bg-page
-         (#070707 dark / #fdfdfd light) or the old #181818 stage
-         card, which read as a mismatched rectangle inside the
-         compare iframe on /skill. Light: #ffffff (stage card).
+      /* Match skill.html surfaces in light/dark:
+         Light: #f9f9f9 (--stage-bg) — the .card-stage interior on
+         index.html cards, sitting inside the white compare card.
          Dark: #121212 (skill --bg). */
-      background: #ffffff;
+      background: #f9f9f9;
       min-height: 0;
       width: 100%;
       overflow-x: hidden;
     }
     html[data-embed="true"] {
-      background: #ffffff;
+      background: #f9f9f9;
     }
     html[data-embed="true"][data-theme="dark"] {
       background: #121212;

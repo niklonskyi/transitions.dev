@@ -2988,10 +2988,11 @@
       height: 100%;
       min-height: 460px;
       border: 0;
-      /* Light: match the stage card. Dark: match page body (--bg)
-         so the embed doesn't read as a separate surface — see the
-         html[data-theme="dark"] override below for the subtle ring. */
-      background: var(--card-bg);
+      /* Light: match index.html .card-stage interior — #f9f9f9 fill
+         with the subtle inset stage ring. Dark: match page body (--bg)
+         with a faint ring — see override below. */
+      background: var(--stage-bg);
+      box-shadow: inset 0 0 0 1px var(--stage-border);
     }
     html[data-theme="dark"] .skill-compare-iframe {
       background: var(--bg);
@@ -3271,7 +3272,7 @@
         <iframe
           id="skill-compare-iframe-off"
           class="skill-compare-iframe"
-          src="example.html?embed=1&style=generic&v=20260520-6"
+          src="example.html?embed=1&style=generic&v=20260520-7"
           title="Modal demo without Transitions.dev skill — no motion"
           loading="lazy"
         ></iframe>
@@ -3280,7 +3281,7 @@
         <iframe
           id="skill-compare-iframe"
           class="skill-compare-iframe"
-          src="example.html?embed=1&v=20260520-6"
+          src="example.html?embed=1&v=20260520-7"
           title="Modal demo built with Transitions.dev skill"
           loading="lazy"
         ></iframe>
