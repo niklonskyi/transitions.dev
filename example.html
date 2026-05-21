@@ -375,7 +375,15 @@
       width: auto;
       max-width: 280px;
     }
+    /* Narrow embed viewports: the card is width:100%, so raising
+       max-width alone does nothing — the modal-root's 16px side
+       padding is what caps the rendered width. Shave 15px per side
+       (+30px total) so the card actually grows on mobile. */
     @media (max-width: 760px) {
+      body[data-embed="true"] .modal-root {
+        padding-left: 1px;
+        padding-right: 1px;
+      }
       body[data-embed="true"] .modal-card {
         max-width: 370px;
       }
