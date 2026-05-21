@@ -77,6 +77,12 @@
        from transitions-dev skill _root.css.
        ────────────────────────────────────────────────────────────── */
     :root {
+      /* Card resize — sourced from the transitions-dev skill
+         (01-card-resize.md). Drives the modal-card growing /
+         shrinking when the error state toggles, plus the
+         absolutely-positioned children that slide to make room. */
+      --resize-dur: 300ms;
+      --resize-ease: cubic-bezier(0.22, 1, 0.36, 1);
       /* Menu dropdown */
       --dropdown-open-dur: 250ms;
       --dropdown-close-dur: 150ms;
@@ -282,6 +288,11 @@
     }
     body[data-embed="true"] .page-stage.t-page-slide {
       min-height: 389px;
+      /* Share the card's resize tween — the stage is absolute-inset
+         inside the modal-card, so without this min-height change
+         the inner content area snaps to its new height even though
+         the card itself is animating. */
+      transition: min-height var(--resize-dur) var(--resize-ease);
     }
     body[data-embed="true"] .modal-card[data-error="true"] .page-stage.t-page-slide {
       min-height: 411px;
@@ -570,7 +581,14 @@
       box-shadow: var(--shadow-modal);
       overflow: hidden;
       color: var(--text-strong);
-      transition: height 220ms cubic-bezier(0.22, 1, 0.36, 1);
+      /* Skill mode card resize. Tween both `height` (canvas mode)
+         and `min-height` (embed mode) so the iframe pane animates
+         the same as the standalone modal — embed mode runs on
+         height:auto so the height property never changes there. */
+      transition:
+        height     var(--resize-dur) var(--resize-ease),
+        min-height var(--resize-dur) var(--resize-ease);
+      will-change: height, min-height;
     }
     /* Error state: grow the modal by 22px so the validation copy
        gets its own space, and push every absolutely-positioned
@@ -879,7 +897,10 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
-      transition: top 220ms cubic-bezier(0.22, 1, 0.36, 1);
+      /* Sync with .modal-card so the rows slide down in the same
+         beat as the card grows. Same tokens (--resize-*) keep all
+         three children locked to the card's resize tween. */
+      transition: top var(--resize-dur) var(--resize-ease);
     }
     .member-row {
       display: flex;
@@ -951,7 +972,7 @@
       font-size: 13px;
       line-height: 16px;
       color: var(--text-muted);
-      transition: top 220ms cubic-bezier(0.22, 1, 0.36, 1);
+      transition: top var(--resize-dur) var(--resize-ease);
     }
     html[data-theme="dark"] .general-label { color: var(--text-soft); }
 
@@ -964,7 +985,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      transition: top 220ms cubic-bezier(0.22, 1, 0.36, 1);
+      transition: top var(--resize-dur) var(--resize-ease);
     }
     .right-cluster {
       display: inline-flex;
@@ -1601,7 +1622,12 @@
       .t-page-slide .t-page,
       .t-icon-swap .t-icon,
       .t-text-swap,
-      .t-avatar {
+      .t-avatar,
+      .modal-card,
+      .member-list,
+      .general-label,
+      .general-row,
+      .page-stage.t-page-slide {
         transition: none !important;
       }
       .t-avatar { transform: none !important; }
