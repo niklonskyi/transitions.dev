@@ -2298,7 +2298,12 @@
       .header {
         height: auto;
         min-height: 180px;
-        padding-top: 60px;
+        /* +20px of head-room over the desktop baseline so the
+           absolutely-positioned top-bar sits clear of the header
+           icon on mobile — was 60, now 80 to add the 20 px gap
+           between the bottom of the top-bar pill row and where
+           the header content starts. */
+        padding-top: 80px;
         padding-bottom: 32px;
         justify-content: flex-end;
       }
@@ -2838,171 +2843,110 @@
       outline-offset: 3px;
     }
 
-    /* "Generic AI output ⇄ With Transitions.dev skill" toggle. The
-       switch itself is a button so it's keyboard / SR accessible;
-       the surrounding labels are clickable too (each label flips
-       the toggle to its own side). */
-    .skill-compare {
+    /* Compare stage — side-by-side on desktop; tabbed swap on mobile.
+       Desktop: both panes visible with Figma 450:547 headings above
+       each iframe. Mobile: tab row drives data-active on the stage
+       and cross-fades the two stacked panes (same behavior as the
+       old toggle, without the switch control). */
+    .skill-compare-stage {
       display: flex;
-      align-items: center;
+      width: 100%;
+      max-width: 1100px;
+      margin: 32px auto 56px;
+      padding: 0 24px;
+      gap: 24px;
+      flex-direction: row;
       justify-content: center;
-      gap: 12px;
-      margin-top: 32px;
-      margin-bottom: 24px;
+      align-items: stretch;
+      flex-wrap: wrap;
+      box-sizing: border-box;
+    }
+    /* Mobile tab row — hidden on desktop. */
+    .skill-compare-tabs {
+      display: none;
+      width: 100%;
+      justify-content: center;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .skill-compare-tab {
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 180ms ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .skill-compare-tab:hover { opacity: 0.9; }
+    .skill-compare-tab[aria-selected="true"] { opacity: 1; }
+    .skill-compare-tab[aria-selected="true"]:hover { opacity: 1; }
+    .skill-compare-tab:focus-visible {
+      outline: 2px solid var(--text);
+      outline-offset: 3px;
+      border-radius: 6px;
+    }
+    /* Desktop: panes are direct flex children of the stage. */
+    .skill-compare-panes {
+      display: contents;
+    }
+    .skill-compare-pane {
+      flex: 1 1 360px;
+      min-width: 0;
+      max-width: 540px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .skill-compare-pane-heading {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    /* Figma 450:547 / 459:1516–459:1518 — 20px status badge with
+       outer elevation + inset bezel, red (generic) or green (skill). */
+    .skill-compare-pane-badge {
+      width: 20px;
+      height: 20px;
+      border-radius: 20px;
+      flex: 0 0 20px;
+      display: inline-grid;
+      place-items: center;
+      box-shadow:
+        0 1px 1px rgba(0, 0, 0, 0.1),
+        0 1px 4px rgba(0, 0, 0, 0.08),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.05),
+        inset 0 -1px 1px rgba(0, 0, 0, 0.09);
+    }
+    .skill-compare-pane-badge--off { background: #f03434; }
+    .skill-compare-pane-badge--on  { background: #35ba00; }
+    .skill-compare-pane-badge svg {
+      display: block;
+      width: 10px;
+      height: 10px;
+    }
+    .skill-compare-pane-label {
       font-family: var(--font-sans);
       font-size: 14px;
       font-weight: 500;
+      line-height: 14px;
       color: #232323;
-    }
-    html[data-theme="dark"] .skill-compare { color: #ededed; }
-    .skill-compare-label {
-      cursor: pointer;
-      opacity: 0.7;
-      transition: opacity 180ms ease;
+      letter-spacing: 0;
       user-select: none;
     }
-    .skill-compare-label:hover { opacity: 1; }
-    .skill-compare-label[data-active="true"] { opacity: 1; }
-    .skill-compare-label--left { text-align: right; min-width: 120px; }
-    .skill-compare-label--right { text-align: left; min-width: 120px; }
-
-    .skill-compare-switch {
-      position: relative;
-      width: 36px;
-      height: 18px;
-      padding: 0;
-      border: 0;
-      border-radius: 100px;
-      background: rgba(0, 0, 0, 0.12);
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: background-color 220ms cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    html[data-theme="dark"] .skill-compare-switch {
-      background: rgba(255, 255, 255, 0.18);
-    }
-    /* Thumb mirrors Figma 450:551 — an 18×12 white pill (NOT a
-       circle) anchored at top:3, left:3 inside a 36×18 track. When
-       checked it slides 12px to the right so the right edge of the
-       pill ends up at left+18+12 = 33 = 36-3 (= symmetrical 3px
-       margin on the other side). */
-    .skill-compare-switch::after {
-      content: "";
-      position: absolute;
-      top: 3px;
-      left: 3px;
-      width: 18px;
-      height: 12px;
-      border-radius: 100px;
-      background: #ffffff;
-      transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    .skill-compare-switch[aria-checked="true"] {
-      background: #35ba00;
-    }
-    html[data-theme="dark"] .skill-compare-switch[aria-checked="true"] {
-      background: #35ba00;
-    }
-    html[data-theme="dark"] .skill-compare-switch[aria-checked="true"]::after {
-      background: #ffffff;
-    }
-    .skill-compare-switch[aria-checked="true"]::after {
-      transform: translateX(12px);
-    }
-    .skill-compare-switch:focus-visible {
-      outline: 2px solid var(--text);
-      outline-offset: 3px;
-    }
-
-    /* Compare stage: two demo cards swap on toggle with a fade +
-       blur cross-dissolve (no scale — the panes are full-bleed and
-       any scale on the boundary reads as the whole card breathing,
-       which we don't want). Both layers sit in the same grid cell
-       so the transition reads as a true in-place swap rather than
-       a slide. */
-    .skill-compare-stage {
-      position: relative;
-      width: 100%;
-      max-width: 837px;
-      margin: 0 auto 56px;
-      border-radius: 24px;
-      background: var(--card-bg);
-      box-shadow:
-        var(--card-shadow),
-        inset 0 0 0 1px var(--card-border),
-        inset 0 -1px 0 0 var(--card-border);
-      overflow: hidden;
-      min-height: 460px;
-      display: grid;
-    }
-    html[data-theme="dark"] .skill-compare-stage {
-      /* Match page body (--bg) so the iframe area doesn't read as a
-         lighter #181818 card floating on #121212. Subtle inset ring
-         replaces the old multi-layer card elevation. */
-      background: var(--bg);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-    }
-    .skill-compare-pane {
-      grid-area: 1 / 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 40px 24px;
-      color: var(--text-muted);
-      font-size: 13px;
-      line-height: 20px;
-      text-align: center;
-      transition:
-        opacity 250ms cubic-bezier(0.22, 1, 0.36, 1),
-        filter 250ms cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    .skill-compare-stage[data-active="off"] .skill-compare-pane--off,
-    .skill-compare-stage[data-active="on"]  .skill-compare-pane--on {
-      opacity: 1;
-      filter: blur(0);
-      pointer-events: auto;
-    }
-    .skill-compare-stage[data-active="on"]  .skill-compare-pane--off,
-    .skill-compare-stage[data-active="off"] .skill-compare-pane--on {
-      opacity: 0;
-      filter: blur(3px);
-      pointer-events: none;
-    }
-    .skill-compare-pane code {
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: var(--text);
-      background: var(--chip-bg);
-      padding: 2px 6px;
-      border-radius: 6px;
-    }
-    /* The "with skill" pane embeds example.html in an iframe so the
-       live modal is the comparison — no padding around the iframe
-       lets the modal sit cleanly inside the card. */
-    .skill-compare-pane:has(.skill-compare-iframe) {
-      padding: 0;
-    }
+    html[data-theme="dark"] .skill-compare-pane-label { color: #ededed; }
     .skill-compare-iframe {
       display: block;
       width: 100%;
-      height: 100%;
+      height: 460px;
       min-height: 460px;
       border: 0;
-      /* Light: match index.html .card-stage interior — #f9f9f9 fill
-         with the subtle inset stage ring. Dark: match page body (--bg)
-         with a faint ring — see override below. */
-      background: var(--stage-bg);
-      box-shadow: inset 0 0 0 1px var(--stage-border);
-    }
-    html[data-theme="dark"] .skill-compare-iframe {
-      background: var(--bg);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-    }
-    .skill-compare-pane strong {
-      display: block;
-      color: var(--text);
-      font-weight: 500;
-      margin-bottom: 8px;
+      border-radius: 14px;
+      background: transparent;
+      box-shadow: none;
     }
 
     /* Content sections (Installation, Try it). Each section holds
@@ -3107,6 +3051,42 @@
       .skill-content,
       .skill-compare-stage { max-width: 100%; }
     }
+    @media (max-width: 760px) {
+      .skill-compare-stage {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+      }
+      .skill-compare-tabs { display: flex; }
+      .skill-compare-panes {
+        display: grid;
+        width: 100%;
+        min-height: 460px;
+      }
+      .skill-compare-pane-heading--desktop { display: none; }
+      .skill-compare-pane {
+        grid-area: 1 / 1;
+        max-width: 100%;
+        width: 100%;
+        transition:
+          opacity 250ms cubic-bezier(0.22, 1, 0.36, 1),
+          filter 250ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .skill-compare-stage[data-active="off"] .skill-compare-pane--off,
+      .skill-compare-stage[data-active="on"]  .skill-compare-pane--on {
+        opacity: 1;
+        filter: blur(0);
+        pointer-events: auto;
+        visibility: visible;
+      }
+      .skill-compare-stage[data-active="on"]  .skill-compare-pane--off,
+      .skill-compare-stage[data-active="off"] .skill-compare-pane--on {
+        opacity: 0;
+        filter: blur(3px);
+        pointer-events: none;
+        visibility: hidden;
+      }
+    }
     @media (max-width: 639px) {
       .top-bar-left { left: 20px; top: 12px; }
       .top-bar { right: 20px; top: 12px; }
@@ -3118,11 +3098,7 @@
       #gh-stars-btn { width: auto; padding: 0 12px; }
       .skill-header { padding-top: 64px; }
       .skill-cta-row { flex-wrap: wrap; }
-      .skill-compare { flex-wrap: wrap; gap: 8px; }
-      .skill-compare-label--left,
-      .skill-compare-label--right { min-width: 0; text-align: center; }
-      .skill-compare-stage { min-height: 200px; margin-bottom: 32px; }
-      .skill-compare-pane { padding: 28px 18px; }
+      .skill-compare-stage { margin-bottom: 32px; padding: 0 16px; }
       .skill-code-row { padding: 4px 6px 4px 12px; }
       .skill-code-row code { font-size: 12px; line-height: 20px; }
       .footer { margin-top: 64px; }
@@ -3150,6 +3126,34 @@
     </nav>
 
     <nav class="top-bar" aria-label="Page actions">
+      <a
+        class="icon-btn-pill"
+        id="gh-stars-btn"
+        href="https://github.com/Jakubantalik/transitions.dev"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="GitHub repository — star count"
+        data-loading="true"
+      >
+        <svg aria-hidden="true" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+        </svg>
+        <span class="pill-label" id="gh-stars-count">—</span>
+      </a>
+      <a
+        class="icon-btn"
+        href="https://x.com/jakubantalik"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="X (Twitter)"
+      >
+        <svg class="icon-x" aria-hidden="true" viewBox="0 0 16 17" xmlns="http://www.w3.org/2000/svg">
+          <path
+            fill="currentColor"
+            d="M12.4041 1.39726H14.6953L9.69087 7.2591L15.5781 15.2368H10.9696L7.35741 10.3996L3.22921 15.2368H0.934687L6.28641 8.96575L0.642598 1.39726H5.36795L8.62962 5.81859L12.4041 1.39726ZM11.5992 13.8329H12.8682L4.67667 2.72798H3.31359L11.5992 13.8329Z"
+          />
+        </svg>
+      </a>
       <button
         type="button"
         class="icon-btn theme-toggle"
@@ -3175,34 +3179,6 @@
           />
         </span>
       </button>
-      <a
-        class="icon-btn"
-        href="https://x.com/jakubantalik"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="X (Twitter)"
-      >
-        <svg class="icon-x" aria-hidden="true" viewBox="0 0 16 17" xmlns="http://www.w3.org/2000/svg">
-          <path
-            fill="currentColor"
-            d="M12.4041 1.39726H14.6953L9.69087 7.2591L15.5781 15.2368H10.9696L7.35741 10.3996L3.22921 15.2368H0.934687L6.28641 8.96575L0.642598 1.39726H5.36795L8.62962 5.81859L12.4041 1.39726ZM11.5992 13.8329H12.8682L4.67667 2.72798H3.31359L11.5992 13.8329Z"
-          />
-        </svg>
-      </a>
-      <a
-        class="icon-btn-pill"
-        id="gh-stars-btn"
-        href="https://github.com/Jakubantalik/transitions.dev"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="GitHub repository — star count"
-        data-loading="true"
-      >
-        <svg aria-hidden="true" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-        </svg>
-        <span class="pill-label" id="gh-stars-count">—</span>
-      </a>
     </nav>
 
     <header class="header">
@@ -3226,8 +3202,8 @@
       </div>
       <h1 class="title">Transitions.dev Skill</h1>
       <p class="subtitle">
-        Transitions skill teaches your AI about product motion<br />
-        and includes all the transitions from the main page.
+        Transitions skill teaches your AI about product motion and includes all the transitions from the main page and useful<br />
+        commands for your agent.
       </p>
       <div class="skill-cta-row">
         <a class="skill-btn skill-btn--primary" href="#installation">Get started</a>
@@ -3245,46 +3221,92 @@
       </div>
     </header>
 
-    <!-- ─── Compare toggle: generic AI output vs. Transitions.dev skill ─ -->
-    <div class="skill-compare" role="group" aria-label="Compare AI output">
-      <span
-        class="skill-compare-label skill-compare-label--left"
-        data-active="true"
-        data-compare-side="off"
-      >Generic AI output</span>
-      <button
-        type="button"
-        class="skill-compare-switch"
-        id="skill-compare-switch"
-        role="switch"
-        aria-checked="false"
-        aria-label="Use Transitions.dev skill"
-      ></button>
-      <span
-        class="skill-compare-label skill-compare-label--right"
-        data-active="false"
-        data-compare-side="on"
-      >With Transitions.dev skill</span>
-    </div>
-
+    <!-- ─── Compare: side-by-side desktop, tabs on mobile ─ -->
     <div class="skill-compare-stage" id="skill-compare-stage" data-active="off">
-      <div class="skill-compare-pane skill-compare-pane--off" aria-hidden="false">
-        <iframe
-          id="skill-compare-iframe-off"
-          class="skill-compare-iframe"
-          src="example.html?embed=1&style=generic&v=20260520-8"
-          title="Modal demo without Transitions.dev skill — no motion"
-          loading="lazy"
-        ></iframe>
+      <div class="skill-compare-tabs" role="tablist" aria-label="Compare AI output">
+        <button
+          type="button"
+          class="skill-compare-tab"
+          id="skill-compare-tab-off"
+          role="tab"
+          data-compare-tab="off"
+          aria-selected="true"
+          aria-controls="skill-compare-pane-off"
+        >
+          <span class="skill-compare-pane-heading">
+            <span class="skill-compare-pane-badge skill-compare-pane-badge--off" aria-hidden="true">
+              <svg viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                <path d="M2.25 2.25L7.75 7.75M7.75 2.25L2.25 7.75" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span class="skill-compare-pane-label">Generic AI output</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          class="skill-compare-tab"
+          id="skill-compare-tab-on"
+          role="tab"
+          data-compare-tab="on"
+          aria-selected="false"
+          aria-controls="skill-compare-pane-on"
+        >
+          <span class="skill-compare-pane-heading">
+            <span class="skill-compare-pane-badge skill-compare-pane-badge--on" aria-hidden="true">
+              <svg viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M8.55 2.27a.75.75 0 0 1 0 1.06L4.28 7.6a.75.75 0 0 1-1.06 0L1.45 5.83a.75.75 0 1 1 1.06-1.06l1.24 1.24 3.74-3.74a.75.75 0 0 1 1.06 0Z" fill="#ffffff"/>
+              </svg>
+            </span>
+            <span class="skill-compare-pane-label">With Transitions Skill</span>
+          </span>
+        </button>
       </div>
-      <div class="skill-compare-pane skill-compare-pane--on" aria-hidden="true">
-        <iframe
-          id="skill-compare-iframe"
-          class="skill-compare-iframe"
-          src="example.html?embed=1&v=20260520-8"
-          title="Modal demo built with Transitions.dev skill"
-          loading="lazy"
-        ></iframe>
+      <div class="skill-compare-panes">
+        <div
+          class="skill-compare-pane skill-compare-pane--off"
+          id="skill-compare-pane-off"
+          role="tabpanel"
+          aria-labelledby="skill-compare-tab-off"
+        >
+          <div class="skill-compare-pane-heading skill-compare-pane-heading--desktop">
+            <span class="skill-compare-pane-badge skill-compare-pane-badge--off" aria-hidden="true">
+              <svg viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                <path d="M2.25 2.25L7.75 7.75M7.75 2.25L2.25 7.75" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span class="skill-compare-pane-label">Generic AI output</span>
+          </div>
+          <iframe
+            id="skill-compare-iframe-off"
+            class="skill-compare-iframe"
+            src="example.html?embed=1&style=generic&v=20260521-10"
+            title="Modal demo without Transitions.dev skill — no motion"
+            loading="lazy"
+          ></iframe>
+        </div>
+        <div
+          class="skill-compare-pane skill-compare-pane--on"
+          id="skill-compare-pane-on"
+          role="tabpanel"
+          aria-labelledby="skill-compare-tab-on"
+          aria-hidden="true"
+        >
+          <div class="skill-compare-pane-heading skill-compare-pane-heading--desktop">
+            <span class="skill-compare-pane-badge skill-compare-pane-badge--on" aria-hidden="true">
+              <svg viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M8.55 2.27a.75.75 0 0 1 0 1.06L4.28 7.6a.75.75 0 0 1-1.06 0L1.45 5.83a.75.75 0 1 1 1.06-1.06l1.24 1.24 3.74-3.74a.75.75 0 0 1 1.06 0Z" fill="#ffffff"/>
+              </svg>
+            </span>
+            <span class="skill-compare-pane-label">With Transitions Skill</span>
+          </div>
+          <iframe
+            id="skill-compare-iframe"
+            class="skill-compare-iframe"
+            src="example.html?embed=1&v=20260521-10"
+            title="Modal demo built with Transitions.dev skill"
+            loading="lazy"
+          ></iframe>
+        </div>
       </div>
     </div>
 
@@ -3577,58 +3599,57 @@
 
       fetchGitHubStars();
 
-      /* ── Compare switch (Generic AI ⇄ With Transitions.dev) ──── */
-      var sw = document.getElementById("skill-compare-switch");
-      var stage = document.getElementById("skill-compare-stage");
-      var labels = document.querySelectorAll("[data-compare-side]");
+      /* ── Compare tabs (mobile only — desktop shows both panes) ─ */
+      var compareStage = document.getElementById("skill-compare-stage");
+      var compareTabs = document.querySelectorAll(".skill-compare-tab");
+      var compareMq = window.matchMedia ? window.matchMedia("(max-width: 760px)") : null;
 
-      function setCompare(on) {
-        if (sw) sw.setAttribute("aria-checked", on ? "true" : "false");
-        if (stage) stage.setAttribute("data-active", on ? "on" : "off");
-        labels.forEach(function (el) {
-          var side = el.getAttribute("data-compare-side");
-          el.setAttribute(
-            "data-active",
-            (side === "on") === !!on ? "true" : "false"
-          );
-        });
-        // Sync aria-hidden on panes for screen readers.
-        if (stage) {
-          var panes = stage.querySelectorAll(".skill-compare-pane");
-          panes.forEach(function (p) {
-            var isOn = p.classList.contains("skill-compare-pane--on");
-            p.setAttribute("aria-hidden", isOn === !!on ? "false" : "true");
-          });
-        }
-        // Reset the publish state in BOTH iframes so each side of
-        // the comparison starts from a clean unpublished baseline
-        // every time the toggle flips. example.html listens for
-        // this message and hard-snaps publishedFlag back to false
-        // without any transition. Safe on initial page load too —
-        // the modal is already unpublished, so the message is a
-        // no-op (and if the iframe hasn't attached its listener
-        // yet, the message is just dropped).
+      function isCompareMobile() {
+        return compareMq && compareMq.matches;
+      }
+
+      function resetComparePublish() {
         ["skill-compare-iframe", "skill-compare-iframe-off"].forEach(function (id) {
           var f = document.getElementById(id);
           if (f && f.contentWindow) {
-            try {
-              f.contentWindow.postMessage({ type: "reset-publish" }, "*");
-            } catch (_) {}
+            try { f.contentWindow.postMessage({ type: "reset-publish" }, "*"); }
+            catch (_) {}
           }
         });
       }
 
-      if (sw) {
-        sw.addEventListener("click", function () {
-          setCompare(sw.getAttribute("aria-checked") !== "true");
+      function setCompareTab(active, resetPublish) {
+        if (!compareStage) return;
+        compareStage.setAttribute("data-active", active);
+        compareTabs.forEach(function (tab) {
+          var on = tab.getAttribute("data-compare-tab") === active;
+          tab.setAttribute("aria-selected", on ? "true" : "false");
         });
+        compareStage.querySelectorAll(".skill-compare-pane").forEach(function (pane) {
+          if (!isCompareMobile()) {
+            pane.setAttribute("aria-hidden", "false");
+            return;
+          }
+          var isOn = pane.classList.contains("skill-compare-pane--on");
+          pane.setAttribute("aria-hidden", (active === "on") === isOn ? "false" : "true");
+        });
+        if (resetPublish && isCompareMobile()) resetComparePublish();
       }
-      labels.forEach(function (el) {
-        el.addEventListener("click", function () {
-          setCompare(el.getAttribute("data-compare-side") === "on");
+
+      compareTabs.forEach(function (tab) {
+        tab.addEventListener("click", function () {
+          setCompareTab(tab.getAttribute("data-compare-tab"), true);
         });
       });
-      setCompare(false);
+      setCompareTab("off", false);
+
+      if (compareMq) {
+        var syncCompareLayout = function () {
+          setCompareTab(compareStage.getAttribute("data-active") || "off", false);
+        };
+        if (compareMq.addEventListener) compareMq.addEventListener("change", syncCompareLayout);
+        else if (compareMq.addListener) compareMq.addListener(syncCompareLayout);
+      }
 
       /* ── Copy buttons ──────────────────────────────────────────
          Each .card-copy declares the source via data-copy-target

@@ -38,7 +38,6 @@
       --stroke-input: rgba(0, 0, 0, 0.04);
       --stroke-input-hover: rgba(0, 0, 0, 0.08);
       --stroke-input-focus: rgba(0, 0, 0, 0.78);
-      --stroke-org-ring: rgba(0, 0, 0, 0.1);
       --stroke-divider: #d9d9d9;
       --opacity-divider: 0.3;
 
@@ -172,7 +171,6 @@
       --stroke-input: rgba(255, 255, 255, 0.04);
       --stroke-input-hover: rgba(255, 255, 255, 0.08);
       --stroke-input-focus: rgba(255, 255, 255, 0.8);
-      --stroke-org-ring: rgba(255, 255, 255, 0.1);
       --stroke-divider: rgba(255, 255, 255, 0.1);
       --opacity-divider: 1;
 
@@ -237,24 +235,20 @@
        flow so its container can size it.
        ────────────────────────────────────────────────────────────── */
     body[data-embed="true"] {
-      /* Match skill.html surfaces in light/dark:
-         Light: #f9f9f9 (--stage-bg) — the .card-stage interior on
-         index.html cards, sitting inside the white compare card.
-         Dark: #121212 (skill --bg). */
-      background: #f9f9f9;
+      background: transparent;
       min-height: 0;
       width: 100%;
       overflow-x: hidden;
     }
     html[data-embed="true"] {
-      background: #f9f9f9;
+      background: transparent;
     }
     html[data-embed="true"][data-theme="dark"] {
-      background: #121212;
+      background: transparent;
       color-scheme: dark;
     }
     html[data-embed="true"][data-theme="dark"] body[data-embed="true"] {
-      background: #121212;
+      background: transparent;
     }
     body[data-embed="true"] .toolbar { display: none; }
     body[data-embed="true"] .modal-backdrop { display: none; }
@@ -276,9 +270,9 @@
       top: auto;
       transform: none;
       /* Fluid width inside the 16px-padded root — caps at the
-         Figma 425px canvas instead of scaling the whole UI down. */
+         340px canvas instead of scaling the whole UI down. */
       width: 100%;
-      max-width: 425px;
+      max-width: 340px;
       height: auto;
       min-height: 389px;
     }
@@ -320,11 +314,11 @@
     }
     /* Publish tab — hero block stays centred but can shrink. */
     body[data-embed="true"] .publish-center {
-      width: min(309px, calc(100% - 32px));
+      width: min(280px, calc(100% - 32px));
     }
     body[data-embed="true"] .publish-copy {
       width: auto;
-      max-width: 297px;
+      max-width: 280px;
     }
 
     /* "Generic AI output" style — strip all of the calibrated
@@ -457,80 +451,100 @@
     }
 
     /* ──────────────────────────────────────────────────────────────
-       Compare toggle (mirrors skill.html). Flips the modal's motion
-       between "Generic AI output" (data-style="generic" — most
-       transitions stripped, three demonstrative ones kept but with
-       deliberately amateur timing/scale) and "With Transitions.dev
-       skill" (data-style unset — the full motion suite plays).
-       Hidden in embed mode because the parent skill.html owns the
-       toggle there.
+       Compare stage (standalone non-embed view). Renders BOTH the
+       generic and the skill-driven motion in two iframes side-by-side
+       so the standalone /example.html page shows both at once — no
+       toggle needed. The standalone modal + toolbar are hidden in
+       non-embed mode so this stage owns the layout. In embed mode
+       (when example.html is loaded inside skill.html's compare iframe)
+       this stage stays hidden and the modal renders directly.
        ────────────────────────────────────────────────────────────── */
-    .compare-bar {
-      position: fixed;
-      top: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      align-items: center;
+    .compare-stage {
+      display: none;
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 64px 24px;
+      gap: 24px;
+      flex-direction: row;
       justify-content: center;
-      gap: 12px;
-      padding: 8px 16px;
-      border-radius: 100px;
-      background: var(--bg-modal);
-      border: 1px solid var(--stroke-input-hover);
-      box-shadow: var(--shadow-modal);
-      font-family: inherit;
-      font-size: 13px;
+      align-items: stretch;
+      flex-wrap: wrap;
+      box-sizing: border-box;
+    }
+    body:not([data-embed="true"]) .compare-stage { display: flex; }
+    body:not([data-embed="true"]) .modal-root,
+    body:not([data-embed="true"]) #accessMenuShell { display: none !important; }
+    /* Standalone compare view has no on-page modal — only the dark-
+       mode toggle is meaningful. Hide "Open modal" so the toolbar
+       doesn't offer a dead-end action. */
+    body:not([data-embed="true"]) #reopenModal { display: none; }
+
+    .compare-pane {
+      flex: 1 1 360px;
+      min-width: 0;
+      max-width: 540px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .compare-pane-heading {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    /* Figma 450:547 / 459:1516–459:1518 — 20px status badge with
+       outer elevation + inset bezel, red (generic) or green (skill). */
+    .compare-pane-badge {
+      width: 20px;
+      height: 20px;
+      border-radius: 20px;
+      flex: 0 0 20px;
+      display: inline-grid;
+      place-items: center;
+      box-shadow:
+        0 1px 1px rgba(0, 0, 0, 0.1),
+        0 1px 4px rgba(0, 0, 0, 0.08),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.05),
+        inset 0 -1px 1px rgba(0, 0, 0, 0.09);
+    }
+    .compare-pane-badge--off { background: #f03434; }
+    .compare-pane-badge--on  { background: #35ba00; }
+    .compare-pane-badge svg {
+      display: block;
+      width: 10px;
+      height: 10px;
+    }
+    .compare-pane-label {
       font-weight: 500;
-      color: var(--text-strong);
-      user-select: none;
-      z-index: 40;
+      font-size: 14px;
+      line-height: 14px;
+      color: #232323;
+      letter-spacing: 0;
     }
-    body[data-embed="true"] .compare-bar { display: none; }
-    .compare-label {
-      cursor: pointer;
-      opacity: 0.6;
-      transition: opacity 180ms ease;
-    }
-    .compare-label:hover { opacity: 0.9; }
-    .compare-label[data-active="true"] { opacity: 1; }
-    .compare-switch {
-      position: relative;
-      width: 36px;
-      height: 18px;
-      padding: 0;
+    html[data-theme="dark"] .compare-pane-label { color: #ededed; }
+    .compare-pane-iframe {
+      display: block;
+      width: 100%;
+      height: 460px;
       border: 0;
-      border-radius: 100px;
-      background: rgba(0, 0, 0, 0.12);
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: background-color 220ms cubic-bezier(0.22, 1, 0.36, 1);
+      border-radius: 14px;
+      background: #f9f9f9;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
     }
-    html[data-theme="dark"] .compare-switch {
-      background: rgba(255, 255, 255, 0.18);
+    html[data-theme="dark"] .compare-pane-iframe {
+      background: #181818;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
     }
-    /* Thumb mirrors Figma 450:551 — an 18×12 white pill (NOT a
-       circle) anchored at top:3, left:3 inside a 36×18 track. */
-    .compare-switch::after {
-      content: "";
-      position: absolute;
-      top: 3px;
-      left: 3px;
-      width: 18px;
-      height: 12px;
-      border-radius: 100px;
-      background: #ffffff;
-      transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    .compare-switch[aria-checked="true"] { background: #35ba00; }
-    .compare-switch[aria-checked="true"]::after { transform: translateX(12px); }
-    .compare-switch:focus-visible {
-      outline: 2px solid var(--text-strong);
-      outline-offset: 3px;
+    /* Narrow viewports — stack the two panes. */
+    @media (max-width: 760px) {
+      .compare-stage { flex-direction: column; align-items: stretch; padding: 32px 16px; }
+      .compare-pane { max-width: 100%; }
     }
 
     /* ──────────────────────────────────────────────────────────────
-       Modal — 425 × 389, rounded 12, Figma drop-shadow stack.
+       Modal — 340 × 389, rounded 12, Figma drop-shadow stack.
        ────────────────────────────────────────────────────────────── */
     .modal-root {
       position: fixed;
@@ -546,7 +560,7 @@
     }
     .modal-card {
       position: absolute;
-      width: 425px;
+      width: 340px;
       height: 389px;
       left: 50%;
       top: 50%;
@@ -702,13 +716,13 @@
     }
 
     /* ── Share state ──────────────────────────────────────────────
-       Input at (16, 85) w300 h36. Invite at (328, 85) w81 h36.
-       Member list at (16, 136) w393, gap 16. */
+       Input at (16, 85) w215 h36. Invite at (243, 85) w81 h36.
+       Member list at (16, 136) w308, gap 16. */
     .invite-field-wrap {
       position: absolute;
       left: 16px;
       top: 85px;
-      width: 300px;
+      width: 215px;
     }
     .invite-field {
       display: flex;
@@ -781,7 +795,7 @@
 
     .primary-btn {
       position: absolute;
-      left: 328px;
+      left: 243px;
       top: 85px;
       width: 81px;
       height: 36px;
@@ -858,7 +872,7 @@
       position: absolute;
       left: 16px;
       top: 136px;
-      width: 393px;
+      width: 308px;
       margin: 0;
       padding: 0;
       list-style: none;
@@ -941,38 +955,24 @@
     }
     html[data-theme="dark"] .general-label { color: var(--text-soft); }
 
-    /* General access row at (16, 338) w393. */
+    /* General access row at (16, 338) w308. */
     .general-row {
       position: absolute;
       left: 16px;
       top: 338px;
-      width: 393px;
+      width: 308px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       transition: top 220ms cubic-bezier(0.22, 1, 0.36, 1);
     }
-    .org-icon-ring {
-      width: 32px;
-      height: 32px;
-      border-radius: 40px;
-      border: 1px solid var(--stroke-org-ring);
-      display: inline-grid;
-      place-items: center;
-      flex-shrink: 0;
-    }
-    .org-text { display: flex; flex-direction: column; gap: 2px; }
-    .org-title { font-weight: 500; font-size: 13px; line-height: 16px; color: var(--text-body); }
-    html[data-theme="dark"] .org-title { color: var(--text-strong); }
-    .org-meta { font-weight: 400; font-size: 13px; line-height: 16px; color: var(--text-muted); }
-
     .right-cluster {
       display: inline-flex;
       align-items: center;
       gap: 8px;
     }
 
-    /* Avatar stack — five 24px avatars overlapping + "+N" pill.
+    /* Avatar stack — five 28px avatars overlapping + "+N" pill.
        `isolation: isolate` contains the explicit z-indices below so
        the stack ordering can't leak out and react with surrounding
        elements. Each avatar lives inside a `.t-avatar-wrap` shell
@@ -991,17 +991,17 @@
     }
     .avatar-stack .t-avatar-wrap + .t-avatar-wrap { margin-left: -4px; }
     .avatar-stack .pill {
-      width: 24px;
-      height: 24px;
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
       object-fit: cover;
       display: block;
       border: 1.5px solid var(--bg-modal);
     }
-    /* +N overflow badge — mirrors Figma 450:1502.
-       24×20 pill (slightly shorter than the 24×24 avatars next to
-       it), semi-transparent grey fill, and a dual-tone inset shadow
-       border instead of the solid white ring used by the avatars.
+    /* +N overflow badge — mirrors Figma 450:1502 / 450:1505.
+       26×26 circle — slightly smaller than the 28×28 avatars beside
+       it, semi-transparent grey fill, and the dual-tone inset shadow
+       border from Figma instead of the solid white ring on avatars.
        Sits BEHIND the rightmost avatar (z-index: 0) so the avatar's
        circle is never clipped by the badge — the overlap shows
        through only on the badge's left edge, where there's no text. */
@@ -1009,15 +1009,16 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 24px;
-      width: 24px;
-      height: 20px;
-      padding: 0 6px;
-      border-radius: 20px;
+      min-width: 26px;
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border-radius: 50%;
       background: rgba(217, 217, 217, 0.62);
+      /* Figma 450:1502 — inset ring + bottom edge */
       box-shadow:
-        inset 0 0 0 1px rgba(0, 0, 0, 0.08),
-        inset 0 -1px 0 0 rgba(0, 0, 0, 0.06);
+        inset 0 0 0 1px rgba(0, 0, 0, 0.04),
+        inset 0 -1px 0 0 rgba(0, 0, 0, 0.04);
       color: #3a3a3a;
       font-weight: 500;
       font-size: 10px;
@@ -1028,7 +1029,7 @@
       z-index: 0;
     }
     /* Small Inter glyphs read ~0.5px low when centered geometrically
-       inside the 20px pill — nudge the inner text up for optical
+       inside the 26px circle — nudge the inner text up for optical
        centering without changing the box. */
     .avatar-stack .more > span { transform: translateY(-0.5px); }
     html[data-theme="dark"] .avatar-stack .more {
@@ -1124,7 +1125,7 @@
       left: 50%;
       top: calc(50% + 23px);
       transform: translate(-50%, -50%);
-      width: 309px;
+      width: 280px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -1190,7 +1191,7 @@
     html[data-theme="dark"] .publish-title { color: var(--text-strong); }
     .publish-copy {
       margin: 0;
-      width: 297px;
+      width: 280px;
       font-weight: 400;
       font-size: 13px;
       line-height: 18px;
@@ -1241,21 +1242,20 @@
        baked into --shadow-modal, so we just need to retune the size
        and rhythm here.
        ────────────────────────────────────────────────────────────── */
-    /* Access-level dropdown shell — carries the box-shadow on a
-       layer that never receives the scale transform. Safari defers
-       painting box-shadow on an element that is mid-scale-animation
-       (~150-200 ms late); splitting shadow (shell) from transform
-       (inner .access-menu) is the reliable fix. Positioning
-       (left/top) is applied to the shell; .t-dropdown animation
-       runs on the inner menu only. */
+    /* Access-level dropdown shell — pure positioning wrapper. The JS
+       sets left/top on the shell; everything visible (background,
+       shadow) lives on the inner .access-menu, so the menu and its
+       shadow are one composited layer that scales and moves together.
+       Shadow uses native box-shadow via --shadow-modal (Figma 450:717)
+       on the scaling element to match Figma rendering exactly. */
     .access-menu-shell {
       position: fixed;
       z-index: 50;
       visibility: hidden;
       pointer-events: none;
-      border-radius: 14px;
-      box-shadow: var(--shadow-modal);
-      overflow: hidden;
+      /* No background / border / shadow — the inner menu owns all
+         the visible styling. Shell only carries the floating
+         position. */
     }
     .access-menu-shell.is-open,
     .access-menu-shell.is-closing {
@@ -1269,8 +1269,15 @@
       width: 188px;
       padding: 4px;
       background: var(--bg-modal);
+      border: 0;
       border-radius: 14px;
-      box-shadow: none;
+      box-sizing: border-box;
+      /* Figma 450:717 — exact Light Mode dropdown shadow stack via
+         --shadow-modal. Native box-shadow matches Figma rendering;
+         lives on the scaling element so it stays aligned during the
+         t-dropdown open/close animation. */
+      box-shadow: var(--shadow-modal);
+      filter: none;
       z-index: 50;
       visibility: visible;
     }
@@ -1298,22 +1305,23 @@
     }
     .access-option .check { visibility: hidden; display: inline-flex; }
     .access-option[data-selected="true"] .check { visibility: visible; }
-    /* Optical centering — the cap-height center of the check sits
-       slightly above the visual middle of mixed-case text like
-       "Full access", so nudge it down 1px. */
-    .access-option .check { transform: translateY(1px); }
+    /* Optical sizing — scale the check to 80% and sit it 1px higher
+       than the previous nudge so it aligns with the option label. */
+    .access-option .check { transform: translateY(0) scale(0.8); }
 
     /* Dark-mode-specific overrides — the dark dropdown in Figma uses
        slightly chunkier rhythm: bigger padding around the menu, taller
        rows with the same radius as the container, and a one-step
        larger label so the text doesn't feel undersized against the
        lower-contrast surface. */
-    html[data-theme="dark"] .access-menu-shell {
-      border-radius: 12px;
-    }
     html[data-theme="dark"] .access-menu {
       padding: 8px;
       border-radius: 12px;
+      border: 0;
+      /* Figma 450:1149 — dark dropdown uses the dark --shadow-modal
+         token (outer depth + inset bezel layers). */
+      box-shadow: var(--shadow-modal);
+      filter: none;
     }
     html[data-theme="dark"] .access-option {
       height: 40px;
@@ -1693,28 +1701,45 @@
     <button class="tool-btn" id="reopenModal" type="button">Open modal</button>
   </div>
 
-  <!-- ─── Compare toggle: Generic vs. Transitions.dev (mirrors
-       skill.html). Flips body[data-style] in place so every
-       transition/animation snaps off (generic) or plays (skill). -->
-  <div class="compare-bar" role="group" aria-label="Compare AI output">
-    <span
-      class="compare-label compare-label--left"
-      data-compare-side="off"
-      data-active="false"
-    >Generic AI output</span>
-    <button
-      type="button"
-      class="compare-switch"
-      id="compareSwitch"
-      role="switch"
-      aria-checked="true"
-      aria-label="Use Transitions.dev skill"
-    ></button>
-    <span
-      class="compare-label compare-label--right"
-      data-compare-side="on"
-      data-active="true"
-    >With Transitions.dev skill</span>
+  <!-- ─── Side-by-side compare stage (standalone non-embed view).
+       Two iframes load the embed-mode modal — one with ?style=generic,
+       one without — so /example.html shows both motion styles at the
+       same time, no toggle needed. Hidden in embed mode via CSS. -->
+  <div class="compare-stage" role="group" aria-label="Compare AI output">
+    <div class="compare-pane">
+      <div class="compare-pane-heading">
+        <span class="compare-pane-badge compare-pane-badge--off" aria-hidden="true">
+          <svg viewBox="0 0 10 10" fill="none" aria-hidden="true">
+            <path d="M2.25 2.25L7.75 7.75M7.75 2.25L2.25 7.75" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="compare-pane-label">Generic AI output</span>
+      </div>
+      <iframe
+        id="compareIframeOff"
+        class="compare-pane-iframe"
+        src="example.html?embed=1&style=generic&v=20260521-10"
+        title="Modal demo without Transitions.dev skill — no motion"
+        loading="lazy"
+      ></iframe>
+    </div>
+    <div class="compare-pane">
+      <div class="compare-pane-heading">
+        <span class="compare-pane-badge compare-pane-badge--on" aria-hidden="true">
+          <svg viewBox="0 0 10 10" fill="none" aria-hidden="true">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M8.55 2.27a.75.75 0 0 1 0 1.06L4.28 7.6a.75.75 0 0 1-1.06 0L1.45 5.83a.75.75 0 1 1 1.06-1.06l1.24 1.24 3.74-3.74a.75.75 0 0 1 1.06 0Z" fill="#ffffff"/>
+          </svg>
+        </span>
+        <span class="compare-pane-label">With Transitions Skill</span>
+      </div>
+      <iframe
+        id="compareIframeOn"
+        class="compare-pane-iframe"
+        src="example.html?embed=1&v=20260521-10"
+        title="Modal demo with Transitions.dev skill"
+        loading="lazy"
+      ></iframe>
+    </div>
   </div>
 
   <div class="modal-root" id="modalRoot" data-open="true">
@@ -1771,16 +1796,11 @@
 
           <div class="general-row above">
             <div class="member-main">
-              <span class="org-icon-ring" id="orgIcon"></span>
-              <div class="org-text">
-                <span class="org-title">Transitions.dev</span>
-                <span class="org-meta">32 members</span>
-              </div>
-            </div>
-            <div class="right-cluster">
               <!-- Avatar group hover (P11): items get .t-avatar so JS
                    can drive distance-falloff lift on mouseenter. -->
               <div class="t-avatar-group avatar-stack" id="generalAvatars"></div>
+            </div>
+            <div class="right-cluster">
               <button class="access-btn" type="button"
                       data-access-owner="general"
                       aria-haspopup="menu" aria-expanded="false">
@@ -1902,23 +1922,6 @@
       ].join('');
     }
 
-    // ar-cube-3 — Figma path 18×19.62 placed at inset (3, 2.19) in a 24×24 ring.
-    function iconCube() {
-      return [
-        '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" aria-hidden="true">',
-        '<g transform="translate(3 2.19)">',
-        '<path fill-rule="evenodd" clip-rule="evenodd" d="M9.3677 1.59632C9.13939 1.46789 8.86061 1.46789 8.6323 1.59632L6.84814 2.59991C6.48713 2.80298 6.02984 2.67494 5.82677 2.31392C5.62369 1.9529 5.75173 1.49562 6.11275 1.29255L7.89691 0.288955C8.58184 -0.0963184 9.41816 -0.0963183 10.1031 0.288955L11.8872 1.29254C12.2483 1.49562 12.3763 1.9529 12.1732 2.31392C11.9702 2.67494 11.5129 2.80298 11.1519 2.59991L9.3677 1.59632ZM4.08342 3.29455C4.2865 3.65557 4.15846 4.11286 3.79744 4.31593L1.88231 5.39319C1.64615 5.52603 1.5 5.77592 1.5 6.04687V8.06023C1.5 8.47444 1.16421 8.81023 0.75 8.81023C0.335787 8.81023 0 8.47444 0 8.06023V6.04687C0 5.23401 0.438441 4.48435 1.14691 4.08583L3.06205 3.00857C3.42307 2.80549 3.88035 2.93353 4.08342 3.29455ZM13.9166 3.29455C14.1196 2.93353 14.5769 2.80549 14.938 3.00857L16.8531 4.08583C17.5616 4.48435 18 5.23401 18 6.04687V8.06022C18 8.47444 17.6642 8.81022 17.25 8.81022C16.8358 8.81022 16.5 8.47444 16.5 8.06022V6.04687C16.5 5.77592 16.3539 5.52603 16.1177 5.39319L14.2026 4.31593C13.8415 4.11286 13.7135 3.65557 13.9166 3.29455ZM17.25 10.8102C17.6642 10.8102 18 11.146 18 11.5602V13.5736C18 14.3864 17.5616 15.1361 16.8531 15.5346L14.938 16.6119C14.5769 16.815 14.1197 16.6869 13.9166 16.3259C13.7135 15.9649 13.8416 15.5076 14.2026 15.3045L16.1177 14.2273C16.3539 14.0944 16.5 13.8445 16.5 13.5736V11.5602C16.5 11.146 16.8358 10.8102 17.25 10.8102ZM0.75 10.8102C1.16421 10.8102 1.5 11.146 1.5 11.5602V13.5736C1.5 13.8445 1.64615 14.0944 1.8823 14.2273L3.79743 15.3045C4.15845 15.5076 4.28649 15.9649 4.08342 16.3259C3.88034 16.6869 3.42306 16.815 3.06204 16.6119L1.14691 15.5346C0.438439 15.1361 0 14.3864 0 13.5736V11.5602C0 11.146 0.335787 10.8102 0.75 10.8102ZM5.82676 17.3065C6.02983 16.9455 6.48712 16.8175 6.84813 17.0205L8.63231 18.0241C8.86061 18.1526 9.13939 18.1526 9.3677 18.0241L11.1519 17.0205C11.5129 16.8175 11.9702 16.9455 12.1732 17.3065C12.3763 17.6675 12.2483 18.1248 11.8873 18.3279L10.1031 19.3315C9.41816 19.7168 8.58184 19.7168 7.89691 19.3315L6.11274 18.3279C5.75172 18.1248 5.62368 17.6675 5.82676 17.3065Z" fill="url(#cubeGrad)"/>',
-        '<path fill-rule="evenodd" clip-rule="evenodd" d="M6.40187 8.31023C6.60898 7.95151 7.06767 7.8286 7.42639 8.03571L8.99996 8.9442L10.5735 8.03571C10.9322 7.8286 11.3909 7.95151 11.598 8.31023C11.8051 8.66895 11.6822 9.12764 11.3235 9.33475L9.74996 10.2432V12.0602C9.74996 12.4744 9.41417 12.8102 8.99996 12.8102C8.58575 12.8102 8.24996 12.4744 8.24996 12.0602V10.2432L6.67639 9.33475C6.31767 9.12764 6.19477 8.66895 6.40187 8.31023Z" fill="url(#cubeGrad)"/>',
-        '<path fill-rule="evenodd" clip-rule="evenodd" d="M8.99997 0.278979C9.41418 0.278979 9.74997 0.614765 9.74997 1.02898V4.06023C9.74997 4.47444 9.41418 4.81023 8.99997 4.81023C8.58575 4.81023 8.24997 4.47444 8.24997 4.06023V1.02898C8.24997 0.614765 8.58575 0.278979 8.99997 0.278979ZM0.484514 5.01634C0.691621 4.65762 1.15031 4.53472 1.50903 4.74182L4.18312 6.28571C4.54184 6.49282 4.66475 6.95151 4.45764 7.31023C4.25053 7.66895 3.79184 7.79185 3.43312 7.58475L0.759033 6.04086C0.400314 5.83376 0.277407 5.37506 0.484514 5.01634ZM17.5154 5.01634C17.7225 5.37506 17.5996 5.83376 17.2409 6.04086L14.5668 7.58475C14.2081 7.79185 13.7494 7.66895 13.5423 7.31023C13.3352 6.95151 13.4581 6.49282 13.8168 6.28571L16.4909 4.74182C16.8496 4.53472 17.3083 4.65762 17.5154 5.01634ZM4.49823 12.2868C4.70534 12.6455 4.58243 13.1042 4.22372 13.3113L1.50903 14.8786C1.15031 15.0857 0.691621 14.9628 0.484514 14.6041C0.277407 14.2454 0.400314 13.7867 0.759033 13.5796L3.47372 12.0123C3.83243 11.8052 4.29113 11.9281 4.49823 12.2868ZM13.5017 12.2868C13.7088 11.9281 14.1675 11.8052 14.5262 12.0123L17.2409 13.5796C17.5996 13.7867 17.7225 14.2454 17.5154 14.6041C17.3083 14.9628 16.8496 15.0857 16.4909 14.8786L13.7762 13.3113C13.4175 13.1042 13.2946 12.6455 13.5017 12.2868ZM8.99997 14.7634C9.41418 14.7634 9.74997 15.0991 9.74997 15.5134V18.5915C9.74997 19.0057 9.41418 19.3415 8.99997 19.3415C8.58575 19.3415 8.24997 19.0057 8.24997 18.5915V15.5134C8.24997 15.0991 8.58575 14.7634 8.99997 14.7634Z" fill="url(#cubeGrad)"/>',
-        '</g>',
-        '<defs><linearGradient id="cubeGrad" x1="12" y1="2.19" x2="12" y2="21.81" gradientUnits="userSpaceOnUse">',
-        '<stop stop-color="var(--cube-stop-1, #535353)"/>',
-        '<stop offset="1" stop-color="var(--cube-stop-2, #8b8b8b)"/>',
-        '</linearGradient></defs>',
-        '</svg>'
-      ].join('');
-    }
-
     // Published badge — 48×48 disc with white check + Figma drop-shadow stack.
     function iconPublishedBadge() {
       return [
@@ -1977,7 +1980,6 @@
     const errorMsg        = $('errorMsg');
     const memberList      = $('memberList');
     const generalAvatars  = $('generalAvatars');
-    const orgIcon         = $('orgIcon');
     const publishBtn      = $('publishBtn');
     const publishedBadge  = $('publishedBadge');
     const publishCenter   = $('publishCenter');
@@ -1998,7 +2000,6 @@
     function paintStaticIcons() {
       copyIconA.innerHTML     = iconCopy();
       copyIconB.innerHTML     = iconCheck();
-      orgIcon.innerHTML       = iconCube();
       // The published badge's check stroke is the only <path> inside
       // its SVG (the disc is a <circle>), so the canonical
       // `.t-success-check svg path` selector targets it directly
@@ -2044,7 +2045,7 @@
       const l = lastNames[Math.floor(Math.random() * lastNames.length)];
       return {
         name: f + ' ' + l,
-        email: (f + '.' + l).toLowerCase() + '@gmail.com'
+        email: f.toLowerCase() + '@gmail.com'
       };
     }
 
@@ -2103,7 +2104,7 @@
         const img = document.createElement('img');
         img.className = 't-avatar pill';
         img.alt = person.name;
-        img.src = avatarUrl(person.url, 24);
+        img.src = avatarUrl(person.url, 28);
 
         const tip = document.createElement('span');
         tip.className = 'avatar-tooltip';
@@ -2651,6 +2652,17 @@
     themeToggle.addEventListener('click', () => {
       const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
       applyTheme(next);
+      /* In standalone (non-embed) mode the page shows two iframes
+         side-by-side. Forward the theme flip to both of them so the
+         compare stays in sync — they each listen for {type:'theme'}
+         via initEmbed's postMessage handler. */
+      ['compareIframeOff', 'compareIframeOn'].forEach((id) => {
+        const f = document.getElementById(id);
+        if (f && f.contentWindow) {
+          try { f.contentWindow.postMessage({ type: 'theme', theme: next }, '*'); }
+          catch (_) {}
+        }
+      });
     });
 
     /* Hard-snap the publish flow back to the unpublished baseline,
@@ -2714,50 +2726,6 @@
           resetPublishState();
         }
       });
-    })();
-
-    /* ──────────────────────────────────────────────────────────────
-       Compare toggle wiring. Mirrors skill.html's switch behaviour,
-       but instead of swapping two iframes we flip body[data-style]
-       in place — the existing `body[data-style="generic"] *` rule
-       does the heavy lifting by zero-ing out every transition and
-       animation. URL ?style=generic seeds the initial state so a
-       bookmarked /example.html?style=generic still lands on the
-       "Generic" side.
-       ────────────────────────────────────────────────────────────── */
-    (function initCompare() {
-      const sw = document.getElementById('compareSwitch');
-      if (!sw) return;
-      const labels = document.querySelectorAll('[data-compare-side]');
-
-      function setCompare(on) {
-        sw.setAttribute('aria-checked', on ? 'true' : 'false');
-        if (on) {
-          delete document.body.dataset.style;
-        } else {
-          document.body.dataset.style = 'generic';
-        }
-        labels.forEach((el) => {
-          const side = el.getAttribute('data-compare-side');
-          el.setAttribute(
-            'data-active',
-            (side === 'on') === !!on ? 'true' : 'false'
-          );
-        });
-      }
-
-      sw.addEventListener('click', () => {
-        setCompare(sw.getAttribute('aria-checked') !== 'true');
-      });
-      labels.forEach((el) => {
-        el.addEventListener('click', () => {
-          setCompare(el.getAttribute('data-compare-side') === 'on');
-        });
-      });
-
-      // Seed from whatever state initEmbed (or page load) settled on
-      // — if data-style="generic" was applied via URL, start off.
-      setCompare(document.body.dataset.style !== 'generic');
     })();
 
     setView('share');

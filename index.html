@@ -2352,7 +2352,12 @@
       .header {
         height: auto;
         min-height: 180px;
-        padding-top: 60px;
+        /* +20px of head-room over the desktop baseline so the
+           absolutely-positioned top-bar sits clear of the header
+           icon on mobile — was 60, now 80 to add the 20 px gap
+           between the bottom of the top-bar pill row and where
+           the header content starts. */
+        padding-top: 80px;
         padding-bottom: 32px;
         justify-content: flex-end;
       }
@@ -2781,31 +2786,6 @@
         </svg>
         <span class="pill-label">Skill</span>
       </a>
-      <button
-        type="button"
-        class="icon-btn theme-toggle"
-        id="theme-toggle"
-        aria-label="Toggle color theme"
-      >
-        <span class="theme-icon-stack no-anim" id="theme-icon-stack" data-active="moon" aria-hidden="true">
-          <img
-            src="assets/theme-moon-01.svg"
-            alt=""
-            class="theme-icon theme-icon-moon"
-            width="16"
-            height="16"
-            decoding="async"
-          />
-          <img
-            src="assets/theme-sun.svg"
-            alt=""
-            class="theme-icon theme-icon-sun"
-            width="16"
-            height="16"
-            decoding="async"
-          />
-        </span>
-      </button>
       <!-- GitHub pill — same component as on /skill, shows live
            stargazer count fetched once per session from the public
            GitHub API. Falls back silently to "Star" on network /
@@ -2838,6 +2818,31 @@
           />
         </svg>
       </a>
+      <button
+        type="button"
+        class="icon-btn theme-toggle"
+        id="theme-toggle"
+        aria-label="Toggle color theme"
+      >
+        <span class="theme-icon-stack no-anim" id="theme-icon-stack" data-active="moon" aria-hidden="true">
+          <img
+            src="assets/theme-moon-01.svg"
+            alt=""
+            class="theme-icon theme-icon-moon"
+            width="16"
+            height="16"
+            decoding="async"
+          />
+          <img
+            src="assets/theme-sun.svg"
+            alt=""
+            class="theme-icon theme-icon-sun"
+            width="16"
+            height="16"
+            decoding="async"
+          />
+        </span>
+      </button>
     </nav>
 
     <header class="header">
