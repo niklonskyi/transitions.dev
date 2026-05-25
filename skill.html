@@ -2733,7 +2733,7 @@
       border: 0;
       border-radius: 50px;
       background: var(--chip-bg);
-      color: var(--text);
+      color: var(--icon-color-muted);
       font-family: var(--font-sans);
       font-size: 13px;
       font-weight: 500;
@@ -2743,7 +2743,7 @@
       transition: background-color 0.15s ease, color 0.15s ease;
       -webkit-tap-highlight-color: transparent;
     }
-    .icon-btn-pill:hover { background: var(--chip-bg-hover); }
+    .icon-btn-pill:hover { background: var(--chip-bg-hover); color: var(--icon-color); }
     .icon-btn-pill:active { background: var(--chip-bg-pressed); }
     .icon-btn-pill:focus-visible {
       outline: 2px solid var(--icon-color);
@@ -2757,13 +2757,12 @@
       height: 16px;
       max-width: 16px;
       display: block;
-      color: var(--icon-color-muted);
+      color: inherit;
       transition: color 0.15s ease;
     }
-    .icon-btn-pill:hover svg { color: var(--icon-color); }
     .icon-btn-pill .pill-label {
       display: inline-block;
-      color: var(--text);
+      color: inherit;
     }
     /* While stars are loading we still reserve a glyph so the pill
        does not visually "pop" wider when the count arrives. */
@@ -3134,6 +3133,8 @@
       width: 32px;
       height: 32px;
       flex-shrink: 0;
+      margin-right: -3px;
+      border-radius: 6px;
       background: transparent;
       background-image: none;
     }
@@ -3885,6 +3886,58 @@
          (CSS selector) or data-copy-text (literal string). On
          success we flip [data-copied] for 1.6s so the icon swap
          (copy ⇄ check) plays. */
+      /* Build the same "Copy code" / "Copied" tooltip used on the
+         index cards. The swap slot is measured once so its width can
+         animate cleanly between both labels. */
+      (function initCopyTooltips() {
+        var buttons = document.querySelectorAll(".card-copy");
+        if (!buttons.length) return;
+
+        buttons.forEach(function (btn) {
+          if (btn.querySelector(".card-copy-tooltip")) return;
+
+          var tt = document.createElement("span");
+          tt.className = "card-copy-tooltip";
+          tt.setAttribute("role", "tooltip");
+          tt.setAttribute("aria-hidden", "true");
+          tt.innerHTML =
+            '<span class="tt-text">' +
+              '<span class="tt-stem">Cop</span>' +
+              '<span class="tt-swap" data-state="copy">' +
+                '<span class="tt-label tt-a">y code</span>' +
+                '<span class="tt-label tt-b">ied</span>' +
+              '</span>' +
+            '</span>';
+          btn.appendChild(tt);
+
+          var swap = tt.querySelector(".tt-swap");
+          var labels = swap.querySelectorAll(".tt-label");
+          var prevVis = tt.style.visibility;
+          var prevOp = tt.style.opacity;
+          tt.style.visibility = "hidden";
+          tt.style.opacity = "0";
+          tt.style.display = "inline-flex";
+
+          var widths = [];
+          labels.forEach(function (lbl) {
+            var prevPos = lbl.style.position;
+            var prevDisp = lbl.style.display;
+            lbl.style.position = "static";
+            lbl.style.display = "inline-block";
+            widths.push(lbl.getBoundingClientRect().width);
+            lbl.style.position = prevPos;
+            lbl.style.display = prevDisp;
+          });
+
+          tt.style.visibility = prevVis;
+          tt.style.opacity = prevOp;
+          tt.style.display = "";
+
+          swap.style.setProperty("--tt-w-a", widths[0] + "px");
+          swap.style.setProperty("--tt-w-b", widths[1] + "px");
+        });
+      })();
+
       var copyBtns = document.querySelectorAll(".card-copy[data-copy-target], .card-copy[data-copy-text]");
 
       function fallbackCopy(text) {
@@ -3930,10 +3983,20 @@
           if (!text) return;
           doCopy(text).then(function () {
             btn.setAttribute("data-copied", "true");
+            var swap = btn.querySelector(".tt-swap");
+            if (swap) swap.setAttribute("data-state", "copied");
             clearTimeout(btn._copyT);
+            clearTimeout(btn._copySwapT);
+            var isTouch =
+              window.matchMedia &&
+              window.matchMedia("(hover: none)").matches;
+            var dwell = isTouch ? 2000 : 1600;
             btn._copyT = setTimeout(function () {
               btn.removeAttribute("data-copied");
-            }, 1600);
+              btn._copySwapT = setTimeout(function () {
+                if (swap) swap.setAttribute("data-state", "copy");
+              }, 200);
+            }, dwell);
           });
         });
       });
