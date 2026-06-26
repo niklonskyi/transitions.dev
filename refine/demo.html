@@ -1,0 +1,2531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Timeline Inspector — Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* @inject-skip-start (demo-only global resets — excluded from the injected build) */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    /* @inject-skip-end */
+
+    :root {
+      /* theme tokens (exact Figma — Logram design system) */
+      --c-text: #17181c; --c-text-strong: #1b1b1b; --c-text-mut: #585858;
+      --c-text-mut2: #696969; --c-text-faint: #979797; --c-count: #9b9b9b;
+      --c-ruler: #8b9099; --c-disabled: #9294a6; --c-label: #5e6073;
+      --c-blue: #0071e2; --c-blue-pressed: #0073e5; --c-blue-bg: rgba(0,117,237,0.06); --c-blue-bg-h: rgba(0,117,237,0.1);
+      --c-blue-bg-a: rgba(0,117,237,0.14); --c-blue-ring: rgba(0,102,215,0.1);
+      /* secondary button (grey 170 @ alpha) */
+      --c-sec: rgba(170,170,170,0.1); --c-sec-h: rgba(170,170,170,0.2); --c-sec-a: rgba(170,170,170,0.28);
+      /* ghost button hover/pressed */
+      --c-ghost-h: #f7f7f7; --c-ghost-a: #f0f0f0;
+      /* play/pause circle */
+      --c-circle: #ffffff; --c-circle-h: #f9f9f9; --c-circle-a: #f4f4f4;
+      /* fields + tracks */
+      --c-field-bg: rgba(238,238,239,0.51); --c-fill: rgba(219,219,219,0.4); --c-fill-a: rgba(219,219,219,0.6);
+      --c-track: #eeeeef; --c-track-h: #e9e9e9; --c-thumb: #767676;
+      --c-line: #ededf0; --c-hairline: rgba(0,0,0,0.04); --c-hairline2: rgba(0,0,0,0.06);
+      /* shadow recipes (exact Figma) */
+      --ring: inset 0 0 0 1px rgba(0,0,0,0.06), inset 0 -1px 0 0 rgba(0,0,0,0.06), inset 0 0 0 1px rgba(196,196,196,0.1);
+      --ring-blue: inset 0 0 0 1px rgba(0,102,215,0.1), inset 0 -1px 0 0 rgba(0,0,0,0.06), inset 0 0 0 1px rgba(196,196,196,0.1);
+      --ring-fill: inset 0 0 0 1px rgba(0,0,0,0.02), inset 0 -1px 0 0 rgba(0,0,0,0.06), inset 0 0 0 1px rgba(196,196,196,0.1);
+      --drop: 0 1px 3px 0 rgba(0,0,0,0.04);
+      --drop-line: 0 1px 3px 0 rgba(0,0,0,0.08);
+      --shadow-border: 0 0 0 1px rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.06), 0 2px 4px 0 rgba(0,0,0,0.04);
+      --shadow-border-hover: 0 0 0 1px rgba(0,0,0,0.08), 0 1px 2px -1px rgba(0,0,0,0.08), 0 2px 4px 0 rgba(0,0,0,0.06);
+      --panel-shadow: 0 10px 40px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.06), 0 1px 1px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.05);
+      --menu-shadow: 0 0 0 1px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.05), 0 4px 42px rgba(0,0,0,0.06);
+      --card-shadow: 0 0 0 1px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+
+      /* transitions.dev — menu dropdown */
+      --dropdown-open-dur: 250ms; --dropdown-close-dur: 150ms;
+      --dropdown-pre-scale: 0.97; --dropdown-closing-scale: 0.99;
+      --dropdown-ease: cubic-bezier(0.22, 1, 0.36, 1);
+      /* transitions.dev — icon swap */
+      --icon-swap-dur: 200ms; --icon-swap-blur: 2px; --icon-swap-start-scale: 0.25; --icon-swap-ease: ease-in-out;
+      /* transitions.dev — tooltip */
+      --tt-in-dur: 150ms; --tt-out-dur: 50ms; --tt-scale: 0.98; --tt-delay: 80ms;
+      --tt-in-ease: ease-out; --tt-out-ease: ease-out; --tt-bg: #ffffff; --tt-fg: #2f2f2f;
+      /* transitions.dev — easing motion tokens (verbatim from skill _root.css) */
+      --panel-ease: cubic-bezier(0.22, 1, 0.36, 1);   /* shared standard ease-out */
+      --morph-ease: cubic-bezier(0.34, 1.25, 0.64, 1);
+      --check-ease-bob: cubic-bezier(0.34, 1.35, 0.64, 1);
+      --badge-pop-ease: cubic-bezier(0.34, 1.36, 0.64, 1);
+      --digit-ease: cubic-bezier(0.34, 1.45, 0.64, 1);
+      --avatar-ease-out: cubic-bezier(0.34, 3.85, 0.64, 1);
+      --badge-close-ease: cubic-bezier(0.4, 0, 0.2, 1);
+      --text-swap-ease: ease-in-out;
+      --shimmer-ease: linear;
+      /* transitions.dev — panel reveal (per-phase distance/ease/scale) */
+      --panel-open-dur: 400ms; --panel-close-dur: 250ms;
+      /* refine panel close runs a touch longer than the main panel close */
+      --refine-close-dur: 350ms;
+      --panel-open-distance: 100px; --panel-close-distance: 10px;
+      --panel-open-ease: var(--panel-ease); --panel-close-ease: var(--panel-ease);
+      --panel-scale: 1; --panel-scale-close: 1;
+      --panel-blur: 2px;
+    }
+
+    /* @inject-skip-start (demo-only page + sample-box styles — excluded from the injected build) */
+    body {
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      background: #fafafa;
+      color: var(--c-text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .demo-root { max-width: 900px; margin: 0 auto; padding: 48px 24px 120px; }
+    .demo-header { margin-bottom: 40px; }
+    .demo-header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; color: #171717; }
+    .demo-header p  { color: var(--c-ruler); font-size: 14px; margin-top: 6px; }
+    .demo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+    .card { padding: 24px; background: #fff; border-radius: 14px; box-shadow: 0 0 0 1px rgba(0,0,0,0.05), 0 2px 6px rgba(0,0,0,0.04); }
+    .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: #171717; }
+    .card p  { font-size: 12px; color: var(--c-ruler); margin-bottom: 16px; line-height: 1.5; }
+
+    .box-resize { width: 80px; height: 80px; background: #ef6c6c; border-radius: 8px; cursor: pointer;
+      transition: width 0.4s ease-out, height 0.4s ease-out, background 0.4s ease-out, border-radius 0.3s ease; }
+    .box-resize.expanded { width: 180px; height: 140px; background: #6c8eef; border-radius: 24px; }
+
+    .box-opacity { width: 100px; height: 80px; background: #38c172; border-radius: 10px; cursor: pointer;
+      transition: opacity 0.6s ease-in-out, transform 0.6s ease-in-out; }
+    .box-opacity.faded { opacity: 0.15; transform: scale(0.85); }
+
+    .box-slide { width: 60px; height: 60px; background: #ef9c6c; border-radius: 50%; cursor: pointer;
+      transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.5s ease; }
+    .box-slide.moved { transform: translateX(160px); background: #c96cef; }
+
+    .box-color { width: 100%; height: 60px; border-radius: 10px; cursor: pointer;
+      background: linear-gradient(135deg, #e9e9ef, #d6d6e0);
+      transition: background 0.8s ease, box-shadow 0.8s ease; }
+    .box-color.lit { background: linear-gradient(135deg, #6c8eef, #ef6c9c);
+      box-shadow: 0 0 30px rgba(108, 142, 239, 0.4); }
+    /* @inject-skip-end */
+
+    /* ───────────────────── timeline panel ───────────────────── */
+    /* unified panel container — single rounded surface, no gaps (matches Figma) */
+    [data-timeline-panel] {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 99999;
+      display: flex; flex-direction: column; gap: 0;
+      padding: 12px; color: var(--c-text);
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      font-size: 13px; background: transparent; pointer-events: none;
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    }
+    [data-timeline-panel] > * { pointer-events: auto; }
+    .tl-resize-handle {
+      position: absolute; top: 0; left: 0; right: 0; height: 14px; z-index: 12;
+      cursor: ns-resize; touch-action: none;
+    }
+    .tl-resize-handle::after {
+      content: ""; position: absolute; left: 50%; top: 6px; transform: translateX(-50%);
+      width: 40px; height: 3px; border-radius: 2px; background: #dcdce2; pointer-events: none;
+      transition: background 0.15s;
+    }
+    .tl-resize-handle:hover::after, .tl-resize-handle.dragging::after { background: var(--c-blue); }
+    .tl-panel-body { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: row; gap: 0; pointer-events: auto;
+      background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); overflow: hidden; }
+    .tl-panel-body > * { pointer-events: auto; }
+    /* timeline content column — full width; the refine panel overlays it without reflow */
+    .tl-panel-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 0; overflow: hidden; }
+    .tl-pill { position: fixed; bottom: 16px; right: 16px; z-index: 99999;
+      height: 40px; background: #fff; border-radius: 36px;
+      padding: 6px 10px 6px 16px;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+      box-shadow: var(--drop), var(--ring); transition: background 0.15s, scale 0.12s ease;
+      animation: tl-pill-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+    @keyframes tl-pill-in { from { opacity: 0; transform: translateY(6px) scale(0.96); }
+      to { opacity: 1; transform: none; } }
+    .tl-pill:hover { background: #f9f9f9; }
+    .tl-pill:active { background: #f9f9f9; scale: 0.96; }
+    .tl-pill-label { font-size: 13px; font-weight: 500; line-height: 14px; color: var(--c-text); white-space: nowrap; }
+    .tl-pill-count { display: flex; align-items: center; justify-content: center;
+      height: 20px; min-width: 20px; padding: 0 6px; border-radius: 999px;
+      background: #060606; color: #fff; font-size: 11px; font-weight: 600; line-height: 16px;
+      box-shadow: 0 1px 3px 0 rgba(0,0,0,0.2), inset 0 0 0 1px rgba(0,0,0,0.06), inset 0 -1px 0 0 rgba(0,0,0,0.06); }
+    /* single-digit count → perfect circle (no side padding so width == height) */
+    .tl-pill-count.is-single { width: 20px; padding: 0; }
+
+    /* ── header row ── */
+    .tl-header { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+      border-bottom: 1px solid var(--c-line); }
+    .tl-header-label { font-size: 13px; font-weight: 500; line-height: 18px; color: var(--c-text-mut2); white-space: nowrap; }
+    .tl-header-count { margin-left: auto; font-size: 13px; line-height: 18px; color: var(--c-count); white-space: nowrap; }
+
+    /* ── buttons ── */
+    /* topbar buttons share a fully rounded 60px corner radius */
+    .tl-header .tl-ghost-btn,
+    .tl-header .tl-icon-btn,
+    .tl-header .tl-sec-btn,
+    .tl-header .tl-refine-btn { border-radius: 60px; }
+
+    /* ghost button: transparent, grey on hover/pressed (Figma #f7f7f7) */
+    .tl-ghost-btn { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 36px;
+      padding: 0 10px 0 12px; border: none; background: transparent; border-radius: 8px;
+      font: inherit; font-size: 13px; font-weight: 500; line-height: 16px; color: var(--c-text-strong); cursor: pointer;
+      transition: background 0.12s ease, scale 0.12s ease; white-space: nowrap; }
+    .tl-ghost-btn:hover:not(:disabled), .tl-ghost-btn.is-active { background: var(--c-ghost-h); }
+    .tl-ghost-btn:active:not(:disabled) { background: var(--c-ghost-a); scale: 0.97; }
+    .tl-ghost-btn:disabled { opacity: 0.6; cursor: default; }
+    .tl-ghost-btn .tl-dim { color: var(--c-text-faint); font-weight: 500; }
+    .tl-ghost-chev { display: flex; color: var(--c-ruler); }
+
+    /* icon button: flat secondary fill, no drop shadow (matches design-system secondary) */
+    .tl-icon-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none;
+      width: 36px; height: 36px; border: none; border-radius: 8px; background: var(--c-sec);
+      color: var(--c-text-mut2); cursor: pointer; transition: background 0.12s ease, color 0.12s ease, scale 0.12s ease; }
+    .tl-icon-btn:hover:not(:disabled), .tl-icon-btn.is-active { background: var(--c-sec-h); }
+    .tl-icon-btn:active:not(:disabled) { background: var(--c-sec-a); scale: 0.96; }
+    .tl-icon-btn:disabled { opacity: 0.5; cursor: default; }
+    .tl-icon-btn.ghost { background: transparent; }
+    .tl-icon-btn.ghost:hover:not(:disabled) { background: var(--c-sec); }
+
+    /* secondary button (Reset): flat grey fill, no shadow */
+    .tl-sec-btn { display: inline-flex; align-items: center; height: 36px; padding: 0 16px; border: none;
+      border-radius: 8px; background: var(--c-sec); color: var(--c-text); font: inherit; font-size: 13px;
+      font-weight: 500; cursor: pointer; transition: background 0.12s ease, scale 0.12s ease; white-space: nowrap; }
+    .tl-sec-btn:hover:not(:disabled) { background: var(--c-sec-h); }
+    .tl-sec-btn:active:not(:disabled) { background: var(--c-sec-a); scale: 0.96; }
+    .tl-sec-btn:disabled { opacity: 0.5; cursor: default; }
+
+    /* blue button (Refine) — Figma Frame 427319678: layered fill + inset ring + drop shadow */
+    .tl-refine-btn { position: relative; isolation: isolate;
+      display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px;
+      border: none; border-radius: 8px; background: transparent; color: var(--c-blue);
+      box-shadow: var(--drop);
+      box-shadow: 0 1px 3px 0 color(display-p3 0 0 0 / 0.04);
+      font: inherit; font-size: 13px; font-weight: 500; line-height: 14px;
+      cursor: pointer; white-space: nowrap; transition: color 0.12s ease; }
+    .tl-refine-btn::before { content: ""; position: absolute; inset: 0; border-radius: inherit;
+      background: var(--c-blue-bg);
+      background: color(display-p3 0 0.451 0.898 / 0.06);
+      transition: background 0.12s ease; z-index: 0; }
+    .tl-refine-btn::after { content: ""; position: absolute; inset: 0; border-radius: inherit;
+      box-shadow: var(--ring-blue);
+      box-shadow: inset 0 0 0 1px color(display-p3 0 0.3942 0.8155 / 0.10), inset 0 -1px 0 0 color(display-p3 0 0 0 / 0.06), inset 0 0 0 1px color(display-p3 0.7674 0.7674 0.7674 / 0.10);
+      pointer-events: none; z-index: 2; }
+    .tl-refine-btn > * { position: relative; z-index: 1; }
+    /* Figma: wand icon stroke is #0073E5, distinct from the #0071e2 label */
+    .tl-refine-btn > svg { color: var(--c-blue-pressed); }
+    .tl-refine-btn:hover:not(:disabled)::before { background: var(--c-blue-bg-h); background: color(display-p3 0 0.451 0.898 / 0.10); }
+    .tl-refine-btn:active:not(:disabled) { color: var(--c-blue-pressed); }
+    .tl-refine-btn:active:not(:disabled)::before { background: var(--c-blue-bg-h); background: color(display-p3 0 0.451 0.898 / 0.10); }
+    .tl-refine-btn:disabled { cursor: default; color: var(--c-blue); }
+    .tl-refine-btn:disabled::before { background: var(--c-blue-bg); background: color(display-p3 0 0.451 0.898 / 0.06); }
+    .tl-refine-btn:disabled span { color: var(--c-blue-pressed); opacity: 0.5; }
+    /* tiny 1px sparks flying out along each of the wand's spark rays on hover */
+    .tl-refine-sparks { position: absolute; left: 23px; top: 15px; width: 0; height: 0; z-index: 3; pointer-events: none; }
+    .tl-refine-sparks i { position: absolute; left: 0; top: 0; width: 1px; height: 1px; border-radius: 50%;
+      background: var(--c-blue); opacity: 0; }
+    @keyframes tl-refine-spark {
+      0%   { opacity: 0; transform: translate(var(--ox, 0), var(--oy, 0)) scale(0.4); }
+      20%  { opacity: 1; transform: translate(calc(var(--ox, 0) + var(--sx, 0) * 0.2), calc(var(--oy, 0) + var(--sy, -12px) * 0.2)) scale(1); }
+      100% { opacity: 0; transform: translate(calc(var(--ox, 0) + var(--sx, 0)), calc(var(--oy, 0) + var(--sy, -12px))) scale(0.6); }
+    }
+    .tl-refine-btn:hover:not(:disabled) .tl-refine-sparks i {
+      animation: tl-refine-spark var(--sd, 900ms) ease-out infinite;
+      animation-delay: var(--sdelay, 0ms); }
+    @media (prefers-reduced-motion: reduce) {
+      .tl-refine-btn:hover:not(:disabled) .tl-refine-sparks i { animation: none; } }
+
+    /* ── transport row ── */
+    .tl-transport { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--c-line); }
+    .tl-transport-left { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .tl-transport-center { flex: 0 0 auto; display: flex; justify-content: center; }
+    .tl-transport-right { flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+    .tl-transport .tl-ghost-btn,
+    .tl-transport .tl-icon-btn,
+    .tl-transport .tl-play-btn { border-radius: 60px; }
+    .tl-timecode { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 500; color: var(--c-text); min-width: 70px; }
+    .tl-speed { font-variant-numeric: tabular-nums; }
+    .tl-zoom { position: relative; width: 72px; height: 15px; flex: none; }
+    /* slider — Logram design system (node 13064:2539): 15px frame, track at y=5, 15px knob at y=0 */
+    .tl-zoom-track { position: absolute; left: 0; right: 0; top: 5px; height: 5px; pointer-events: none;
+      background: rgba(115,115,115,0.1); border: 1px solid rgba(0,0,0,0.08); border-radius: 7px; box-sizing: border-box; }
+    .tl-zoom input[type="range"] { position: relative; z-index: 1; width: 100%; height: 15px; margin: 0;
+      -webkit-appearance: none; appearance: none; background: transparent; outline: none; cursor: pointer; }
+    .tl-zoom input[type="range"]::-webkit-slider-runnable-track { height: 15px; background: transparent; border: none; }
+    .tl-zoom input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none;
+      width: 15px; height: 15px; margin-top: 0; border-radius: 50%; background: #fff; cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(126,126,126,0.1), inset 0 -1px 0 rgba(0,0,0,0.1); }
+    .tl-zoom input[type="range"]::-moz-range-track { height: 15px; background: transparent; border: none; }
+    .tl-zoom input[type="range"]::-moz-range-thumb { width: 15px; height: 15px; border: none; border-radius: 50%;
+      background: #fff; cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(126,126,126,0.1), inset 0 -1px 0 rgba(0,0,0,0.1); }
+    /* play/pause circle — Figma: drop shadow + inset ring overlay */
+    .tl-play-btn { position: relative; isolation: isolate; overflow: hidden;
+      display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px;
+      border: none; border-radius: 50%; background: var(--c-circle); color: #17181c;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04); cursor: pointer;
+      transition: background 0.12s ease, scale 0.12s ease; }
+    .tl-play-btn::after { content: ""; position: absolute; inset: 0; border-radius: inherit;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06), inset 0 -1px 0 0 rgba(0, 0, 0, 0.06),
+        inset 0 0 0 1px rgba(196, 196, 196, 0.10); pointer-events: none; }
+    .tl-play-btn > * { position: relative; z-index: 1; }
+    .tl-play-btn:hover:not(:disabled) { background: var(--c-circle-h); }
+    .tl-play-btn:active:not(:disabled) { background: var(--c-circle-a); scale: 0.96; }
+    .tl-play-btn:disabled { opacity: 0.5; cursor: default; }
+    /* center both icon layers in the swap cell so the differently-sized play (10×12)
+       and pause (16²) svgs share one center; nudge ONLY the play triangle right for
+       optical centering (skill: play-button triangles). left/position (not transform)
+       so it doesn't clash with the icon-swap scale animation; pause stays dead-center. */
+    .tl-play-btn .t-icon { place-self: center; }
+    .tl-play-btn .t-icon[data-icon="a"] { position: relative; left: 1px; }
+
+    /* ── body / floating cards row ── */
+    .tl-body { display: flex; flex: 1; min-height: 0; gap: 0; }
+    .tl-main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+    .tl-inspector { flex: 0 0 280px; padding: 14px 16px 18px; display: flex; flex-direction: column;
+      border-left: 1px solid var(--c-line); min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+    .tl-insp-title { font-size: 13px; font-weight: 500; line-height: 18px; color: #171717; margin-bottom: 12px; text-transform: capitalize; }
+    .tl-insp-label { font-size: 12px; line-height: 18px; color: #737373; margin: 10px 0 6px; }
+
+    /* ── tracks / ruler ── */
+    .tl-tracks { position: relative; flex: 1; }
+    .tl-ruler-row { display: flex; height: 30px; border-bottom: 1px solid var(--c-line); }
+    .tl-ruler-spacer { flex: 0 0 150px; border-right: 1px solid var(--c-line); }
+    .tl-ruler { position: relative; flex: 1; margin-left: 16px; }
+    .tl-ruler .maj { position: absolute; top: 9px; font-size: 12px; line-height: 14px; color: var(--c-ruler); transform: translateX(-50%); white-space: nowrap; }
+    .tl-ruler .maj.first { transform: none; left: 4px !important; }
+    .tl-ruler .maj.last { transform: translateX(-100%); margin-left: -4px; }
+    .tl-ruler .tick { position: absolute; top: 14px; width: 2px; height: 2px; border-radius: 50%;
+      background: #cdced4; transform: translateX(-50%); }
+    .tl-prop-row { display: flex; align-items: stretch; height: 48px; border-bottom: 1px solid var(--c-line); cursor: pointer; }
+    .tl-prop-row:hover { background: #fcfcfd; }
+    .tl-prop-row.selected { background: #fafafa; }
+    .tl-prop-head { flex: 0 0 150px; display: flex; align-items: center; gap: 8px; padding-left: 12px;
+      padding-right: 10px; overflow: hidden; border-right: 1px solid var(--c-line); }
+    .tl-prop-grip { display: flex; color: #cccdd4; flex: none; cursor: grab; }
+    .tl-prop-grip:active { cursor: grabbing; }
+    .tl-rows { position: relative; }
+    .tl-prop-row.reordering { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.10);
+      position: relative; z-index: 5; cursor: grabbing; }
+    .tl-prop-row.reordering .tl-prop-grip { color: var(--c-ruler); cursor: grabbing; }
+    .tl-prop-label { font-size: 13px; font-weight: 500; line-height: 18px; color: var(--c-text-mut2); white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; text-transform: capitalize; }
+    .tl-prop-row.selected .tl-prop-label { color: #171717; }
+    /* 16px left inset of the plot area (kept in sync with ruler/playhead/scrub) */
+    .tl-prop-track { position: relative; flex: 1; user-select: none; margin-left: 16px; }
+    /* timeline line — capsule (fully rounded), Figma #eeeeef default / #e9e9e9 hover */
+    .tl-bar { position: absolute; top: 50%; height: 24px; transform: translateY(-50%); background: var(--c-track);
+      border-radius: 8px; min-width: 24px; cursor: grab;
+      box-shadow: 0 1px 3px 0 rgba(0,0,0,0.08), inset 0 0 0 1px rgba(0,0,0,0.06), inset 0 -1px 0 0 rgba(0,0,0,0.1), inset 0 0 0 1px rgba(196,196,196,0.1);
+      transition: background 0.12s ease; }
+    .tl-prop-row:hover .tl-bar, .tl-prop-row.selected .tl-bar { background: var(--c-track-h); }
+    .tl-bar:active { cursor: grabbing; }
+    /* resize handles — Figma node 13044:2625: 2×14px, #767676 @60%, centered, ~5px edge inset */
+    .tl-bar-handle { position: absolute; top: 50%; transform: translateY(-50%); width: 2px; height: 14px; border-radius: 20px;
+      background: var(--c-thumb); opacity: 0; transition: opacity 0.12s ease; pointer-events: none; }
+    .tl-bar-handle.left { left: 5px; }
+    .tl-bar-handle.right { right: 5px; }
+    .tl-prop-row:hover .tl-bar-handle { opacity: 0.6; }
+    .tl-bar:active .tl-bar-handle,
+    .tl-bar:has(.tl-bar-grip:active) .tl-bar-handle { opacity: 1; }
+    .tl-bar-grip { position: absolute; top: 0; bottom: 0; width: 10px; cursor: ew-resize; z-index: 2; }
+    .tl-bar-grip.left { left: -5px; } .tl-bar-grip.right { right: -5px; }
+
+    .tl-playhead-layer { position: absolute; top: 14px; bottom: 0; left: 166px; right: 0;
+      pointer-events: none; z-index: 4; }
+    .tl-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #1A7AFF; transform: translateX(-1px); }
+    .tl-playhead-head { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); width: 16.666px; height: 24px;
+      overflow: visible; filter: drop-shadow(0 1px 3px rgba(0,0,0,.25)); }
+    .tl-scrub-zone { position: absolute; top: 0; height: 30px; left: 166px; right: 0;
+      z-index: 6; cursor: ew-resize; }
+
+    /* ── value field (slider + input) — exact Figma "Value slider and input" ── */
+    .tl-field-wrap { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .tl-field { position: relative; flex: 1; min-width: 0; height: 36px; border-radius: 8px;
+      background: var(--c-field-bg); transition: box-shadow 0.12s ease; }
+    /* focused: dual inset ring (Figma Focused state) */
+    .tl-field.is-editing { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.06); }
+    /* inner slider fill — Figma button/tiny: soft drop shadow + inset ring give the
+       "raised block" look (shadow 0 1px 3px @4%, hairline border, bottom 1px). */
+    .tl-field-fill { position: absolute; left: 0; top: 0; bottom: 0; min-width: 36px; border-radius: 8px;
+      background: var(--c-fill); box-shadow: var(--drop), var(--ring-fill);
+      pointer-events: none; transition: background 0.12s ease, opacity 0.12s ease; z-index: 1; }
+    .tl-field.is-dragging .tl-field-fill { background: var(--c-fill-a); }
+    .tl-field.is-dragging .tl-field-label { opacity: 0.7; }
+    .tl-field.is-editing .tl-field-fill { opacity: 0; }
+    .tl-field-track { position: absolute; inset: 0; cursor: ew-resize; z-index: 2; }
+    .tl-field-label { position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      font-size: 13px; font-weight: 500; color: var(--c-text-mut); pointer-events: none; z-index: 3; }
+    .tl-field-value { position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      font-size: 13px; color: var(--c-text); font-weight: 500; cursor: text; z-index: 3;
+      font-variant-numeric: tabular-nums; }
+    .tl-field-input { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 64px;
+      text-align: right; border: none; background: transparent; font: inherit; font-size: 13px; font-weight: 500;
+      color: var(--c-text); outline: none; z-index: 4; font-variant-numeric: tabular-nums; }
+    /* thumb at the right edge of the fill (Figma #767676 2×20px, inset 8px, hover 60% / drag 100%) */
+    .tl-field-thumb { position: absolute; right: 8px; top: 8px; height: 20px; width: 2px;
+      background: var(--c-thumb); border-radius: 20px; opacity: 0; pointer-events: none;
+      transition: opacity 0.12s ease; z-index: 3; }
+    .tl-field:hover .tl-field-thumb { opacity: 0.6; }
+    .tl-field.is-dragging .tl-field-thumb { opacity: 1; }
+    .tl-field.is-editing .tl-field-thumb { opacity: 0; }
+    .tl-field-chevron { flex: none; width: 36px; height: 36px; border-radius: 8px; display: flex;
+      align-items: center; justify-content: center; border: none; background: var(--c-field-bg);
+      color: var(--c-ruler); cursor: pointer; transition: background 0.12s ease, scale 0.12s ease; }
+    .tl-field-chevron:hover { background: var(--c-sec-h); }
+    .tl-field-chevron:active { scale: 0.96; }
+
+    /* ── easing editor ── */
+    .tl-ease { display: flex; flex-direction: column; gap: 8px; }
+
+    /* tab content page-slide (transitions.dev · 08-page-side-by-side) */
+    .tl-ease-pages.t-page-slide {
+      position: relative;
+      --page-slide-dur: 250ms;
+      --page-fade-dur: 250ms;
+      --page-slide-distance: 8px;
+      --page-blur: 3px;
+      --page-stagger: 0ms;
+      --page-exit-enabled: 1;
+      --page-slide-ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --page-fade-ease: cubic-bezier(0.22, 1, 0.36, 1);
+      transition: height var(--page-slide-dur) var(--page-slide-ease);
+      overflow: hidden;
+    }
+    .tl-ease-pages .t-page[data-page-id="1"] { --t-page-from-x: calc(var(--page-slide-distance) * -1); }
+    .tl-ease-pages .t-page[data-page-id="2"] { --t-page-from-x: var(--page-slide-distance); }
+    .tl-ease-pages .t-page {
+      position: absolute; top: 0; left: 0; right: 0;
+      opacity: 0; pointer-events: none;
+      transform: translateX(calc(var(--t-page-from-x, 0px) * var(--page-exit-enabled)));
+      filter: blur(calc(var(--page-blur) * var(--page-exit-enabled)));
+      transition:
+        opacity   var(--page-fade-dur)  var(--page-fade-ease),
+        transform var(--page-slide-dur) var(--page-slide-ease),
+        filter    var(--page-slide-dur) var(--page-slide-ease);
+      will-change: opacity, transform, filter;
+    }
+    .tl-ease-pages[data-page="1"] .t-page[data-page-id="1"],
+    .tl-ease-pages[data-page="2"] .t-page[data-page-id="2"] {
+      opacity: 1; pointer-events: auto; transform: translateX(0); filter: blur(0);
+      transition-delay: var(--page-stagger);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .tl-ease-pages.t-page-slide,
+      .tl-ease-pages .t-page { transition: none !important; }
+    }
+    /* easing select trigger (custom dropdown) */
+    /* select trigger — Logram design system (node 13064:2418): flat #f7f7f7 fill */
+    .tl-select { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 36px;
+      border: none; border-radius: 8px; background: #f7f7f7; padding: 6px 10px 6px 12px;
+      font: inherit; font-size: 13px; font-weight: 500; line-height: 16px; color: #1b1b1b; cursor: pointer; text-align: left;
+      transition: background 0.12s ease; }
+    .tl-select:hover { background: rgba(170,170,170,0.2); }
+    .tl-select.is-open { background: rgba(170,170,170,0.2); }
+    .tl-select:disabled { opacity: 0.5; cursor: default; }
+    .tl-select-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tl-select-chev { display: flex; color: var(--c-ruler); flex: none; }
+    /* easing curve — exact Figma (node 13044:2506): #f6f6f7, ~6px radius, subtle inset border */
+    .tl-curve { background: #f6f6f7; border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04);
+      padding: 0; position: relative; overflow: hidden; }
+    .tl-curve svg { display: block; cursor: crosshair; width: 100%; height: auto; }
+    .tl-curve-handle { cursor: grab; }
+    .tl-curve-handle:active { cursor: grabbing; }
+    .tl-cubic-row { display: flex; gap: 4px; }
+    /* number field — Logram design system (node 13064:2431): 32px, #f7f7f7 fill,
+       Inter Medium 13/16, gray hover overlay, inset 1px focus ring */
+    .tl-cubic-row input { flex: 1; width: 0; height: 32px; border: none; border-radius: 8px; background: #f7f7f7;
+      box-sizing: border-box; padding: 8px 0;
+      text-align: center; font: inherit; font-size: 13px; font-weight: 500; line-height: 16px; color: #1b1b1b;
+      outline: none; box-shadow: inset 0 0 0 0 rgba(0,0,0,0.14); transition: box-shadow 0.12s ease, background 0.12s ease; }
+    .tl-cubic-row input::placeholder { color: #979797; }
+    .tl-cubic-row input:hover { background: linear-gradient(rgba(170,170,170,0.2),rgba(170,170,170,0.2)), #f7f7f7; }
+    .tl-cubic-row input:focus { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.14); }
+    .tl-custom-input { height: 30px; border: none; border-radius: 6px; background: var(--c-field-bg); padding: 0 8px;
+      font: inherit; font-size: 12px; font-family: monospace; color: var(--c-text); outline: none;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04); }
+    .tl-bounce { background: #fff; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--c-hairline);
+      padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+    .tl-bounce-title { font-size: 11px; color: var(--c-text-mut); font-weight: 600; }
+    .tl-bounce-row { display: flex; align-items: center; gap: 8px; }
+    .tl-bounce-row label { font-size: 11px; color: #737373; width: 54px; flex: none; }
+    .tl-bounce-row input[type="range"] { flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
+      background: #e3e3e8; border-radius: 2px; outline: none; }
+    .tl-bounce-row input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none;
+      width: 12px; height: 12px; border-radius: 50%; background: var(--c-blue); cursor: pointer; }
+    .tl-bounce-val { font-size: 11px; color: var(--c-blue); width: 34px; text-align: right; }
+    .tl-bounce select { height: 26px; border: none; border-radius: 6px; background: var(--c-field-bg);
+      font: inherit; font-size: 11px; color: var(--c-text); outline: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04); flex: 1; }
+
+    /* ── Easing / Springs tabs — Logram design system (node 13064:2552): trackless toggle pills ── */
+    .tl-seg { display: flex; align-items: center; gap: 4px; margin-top: 12px; }
+    .tl-seg-btn { height: 32px; padding: 6px 12px; border: none; border-radius: 8px; background: transparent;
+      font: inherit; font-size: 13px; font-weight: 500; line-height: 14px; color: #676767; cursor: pointer;
+      transition: background 0.14s ease, color 0.14s ease; }
+    .tl-seg-btn:hover:not(.is-active) { background: rgba(170,170,170,0.06); color: #17181c; }
+    .tl-seg-btn.is-active { background: rgba(170,170,170,0.1); color: #17181c; }
+
+    /* position preview (animated marker à la easing.dev) */
+    .tl-preview { margin-top: 8px; background: #fff; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--c-hairline);
+      padding: 8px 12px 14px; }
+    .tl-preview-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .tl-preview-title { font-size: 11px; font-weight: 600; color: var(--c-text-mut); }
+    .tl-preview-btn { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px 0 7px;
+      border: none; border-radius: 6px; background: var(--c-field-bg); color: var(--c-text-mut2);
+      font: inherit; font-size: 11px; font-weight: 500; cursor: pointer;
+      transition: background 0.12s ease, scale 0.12s ease; }
+    .tl-preview-btn:hover { background: var(--c-sec-h); }
+    .tl-preview-btn:active { scale: 0.96; }
+    .tl-preview-track { position: relative; height: 16px; }
+    .tl-preview-rail { position: absolute; left: 0; right: 0; top: 50%; height: 2px; transform: translateY(-50%);
+      background: var(--c-track); border-radius: 2px; }
+    .tl-preview-end { position: absolute; top: 50%; width: 2px; height: 8px; transform: translateY(-50%);
+      background: #d0d0d6; border-radius: 2px; }
+    .tl-preview-end.left { left: 0; }
+    .tl-preview-end.right { right: 0; }
+    .tl-preview-dot { position: absolute; left: 0; top: 50%; width: 14px; height: 14px; margin-top: -7px;
+      border-radius: 50%; background: var(--c-blue); box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+      will-change: transform; }
+
+    /* menu section header (non-clickable) */
+    .tl-menu-group { padding: 9px 10px 4px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--c-text-faint); pointer-events: none; }
+    .tl-menu-group:first-child { padding-top: 4px; }
+
+    /* spring params box (reuses bounce row layout) */
+    .tl-spring-dur { display: flex; align-items: baseline; gap: 6px; font-size: 11px; color: var(--c-text-mut);
+      padding-top: 2px; border-top: 1px solid var(--c-hairline); margin-top: 2px; }
+    .tl-spring-dur b { color: var(--c-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .tl-spring-dur .tl-spring-dur-hint { color: var(--c-text-faint); }
+
+    /* read-only (spring-driven) value field */
+    .tl-field-wrap.is-locked { position: relative; }
+    .tl-field.is-readonly { cursor: default; }
+    .tl-field.is-readonly .tl-field-track { cursor: default; }
+    .tl-field.is-readonly .tl-field-fill { opacity: 0.7; }
+    .tl-field.is-readonly .tl-field-value { color: var(--c-text-mut); }
+    .tl-field-lock { position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
+      display: flex; color: var(--c-text-faint); pointer-events: none; z-index: 4; }
+    .tl-field-wrap.is-locked .t-tt { left: 0; transform: translate(0, 4px) scale(var(--tt-scale));
+      transform-origin: 0 0; white-space: normal; width: 244px; text-align: left; font-size: 12px;
+      line-height: 1.45; padding: 9px 11px; }
+    .tl-field-wrap.is-locked:hover .t-tt { opacity: 1; transform: translate(0, 0) scale(1);
+      transition-duration: var(--tt-in-dur); transition-timing-function: var(--tt-in-ease);
+      transition-delay: var(--tt-delay); pointer-events: none; }
+
+    .tl-empty { flex: 1; padding: 40px 16px; color: var(--c-disabled); font-size: 13px; text-align: center;
+      display: flex; align-items: center; justify-content: center;
+      background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); }
+
+    /* ── shared dropdown surface ── */
+    .tl-menu { background: #fff; border-radius: 12px; padding: 6px; box-shadow: var(--menu-shadow); }
+    .tl-menu-item { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 6px 10px;
+      border-radius: 7px; font-size: 13px; color: var(--c-text-strong); cursor: pointer;
+      transition: background 0.1s ease, box-shadow 0.1s ease; }
+    .tl-menu-item:hover { background: #f4f4f5; }
+    .tl-menu-item:active { background: #ededee; }
+    .tl-menu-item:focus-visible { outline: none; background: #fff; box-shadow: inset 0 0 0 1px rgba(0,115,229,0.4); }
+    .tl-menu-item.disabled { color: var(--c-disabled); pointer-events: none; }
+    .tl-menu-item-label { flex: 1; min-width: 0; display: flex; align-items: center; }
+    .tl-menu-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tl-menu-dim { color: var(--c-text-faint); }
+    .tl-menu-help { color: #c4c4cc; margin-left: 10px; flex: none; cursor: help; }
+    .tl-menu-help:hover { color: var(--c-ruler); }
+    .tl-menu-help svg { display: block; }
+    .tl-menu-check { display: flex; color: var(--c-text-strong); flex: none; }
+    .tl-menu-empty { padding: 10px; color: var(--c-disabled); font-size: 13px; }
+
+    /* ═════ transitions.dev — menu dropdown (verbatim) ═════ */
+    .t-dropdown {
+      transform-origin: top left;
+      transform: scale(var(--dropdown-pre-scale));
+      opacity: 0;
+      pointer-events: none;
+      transition:
+        transform var(--dropdown-open-dur) var(--dropdown-ease),
+        opacity   var(--dropdown-open-dur) var(--dropdown-ease);
+      will-change: transform, opacity;
+    }
+    .t-dropdown[data-origin="top-right"]     { transform-origin: top right; }
+    .t-dropdown[data-origin="top-center"]    { transform-origin: top center; }
+    .t-dropdown[data-origin="bottom-left"]   { transform-origin: bottom left; }
+    .t-dropdown[data-origin="bottom-center"] { transform-origin: bottom center; }
+    .t-dropdown[data-origin="bottom-right"]  { transform-origin: bottom right; }
+    .t-dropdown.is-open {
+      transform: scale(1);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .t-dropdown.is-closing {
+      transform: scale(var(--dropdown-closing-scale));
+      opacity: 0;
+      pointer-events: none;
+      transition:
+        transform var(--dropdown-close-dur) var(--dropdown-ease),
+        opacity   var(--dropdown-close-dur) var(--dropdown-ease);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .t-dropdown { transition: none !important; }
+    }
+
+    /* ═════ transitions.dev — icon swap (verbatim) ═════ */
+    .t-icon-swap {
+      position: relative;
+      display: inline-grid;
+    }
+    .t-icon-swap .t-icon {
+      grid-area: 1 / 1;
+      transition:
+        opacity   var(--icon-swap-dur) var(--icon-swap-ease),
+        filter    var(--icon-swap-dur) var(--icon-swap-ease),
+        transform var(--icon-swap-dur) var(--icon-swap-ease);
+      will-change: opacity, filter, transform;
+    }
+    .t-icon-swap[data-state="a"] .t-icon[data-icon="a"],
+    .t-icon-swap[data-state="b"] .t-icon[data-icon="b"] {
+      opacity: 1;
+      filter: blur(0);
+      transform: scale(1);
+    }
+    .t-icon-swap[data-state="a"] .t-icon[data-icon="b"],
+    .t-icon-swap[data-state="b"] .t-icon[data-icon="a"] {
+      opacity: 0;
+      filter: blur(var(--icon-swap-blur));
+      transform: scale(var(--icon-swap-start-scale));
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .t-icon-swap .t-icon { transition: none !important; }
+    }
+
+    /* ═════ transitions.dev — tooltip (verbatim) ═════ */
+    .t-tt-wrap {
+      position: relative;
+      display: inline-block;
+    }
+    .t-tt {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translate(-50%, 0) scale(var(--tt-scale));
+      transform-origin: 50% 100%;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: var(--tt-bg);
+      color: var(--tt-fg);
+      white-space: nowrap;
+      box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.06),
+        0 2px 6px 0 rgba(0, 0, 0, 0.05),
+        0 4px 42px 0 rgba(0, 0, 0, 0.06);
+      opacity: 0;
+      pointer-events: none;
+      transition:
+        opacity   var(--tt-out-dur) var(--tt-out-ease),
+        transform var(--tt-out-dur) var(--tt-out-ease);
+    }
+    .t-tt-wrap:hover .t-tt,
+    .t-tt-trigger:focus-visible + .t-tt {
+      opacity: 1;
+      transform: translate(-50%, 0) scale(1);
+      transition-duration: var(--tt-in-dur);
+      transition-timing-function: var(--tt-in-ease);
+      transition-delay: var(--tt-delay);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .t-tt { transition: none !important; }
+    }
+    /* below-variant for triggers near the panel top edge */
+    .t-tt.tl-tt-below { bottom: auto; top: calc(100% + 8px); transform-origin: 50% 0; font-size: 12px; }
+    /* usage-variant: right-anchored, multi-line copy for token help icons */
+    .t-tt.tl-tt-usage { left: auto; right: -6px; width: 224px; white-space: normal; text-align: left;
+      font-size: 12px; line-height: 1.45; padding: 9px 11px; transform-origin: 100% 100%;
+      text-wrap: balance; transform: translate(0, 4px) scale(var(--tt-scale)); }
+    .t-tt-wrap:hover .t-tt.tl-tt-usage { transform: translate(0, 0) scale(1); }
+
+    /* ═════ transitions.dev — panel reveal (per-phase distance/ease/scale) ═════ */
+    /* base = closed / close-end state: resolved travel + scale come from the
+       phase rules below; default to the close tokens, transition on close. */
+    .t-panel-slide {
+      --panel-translate-y: var(--panel-close-distance);
+      --panel-scale-now: var(--panel-scale-close);
+      transform: translateY(var(--panel-translate-y)) scale(var(--panel-scale-now));
+      opacity: 0;
+      filter: blur(var(--panel-blur));
+      pointer-events: none;
+      transition:
+        transform var(--panel-close-dur) var(--panel-close-ease),
+        opacity   var(--panel-close-dur) var(--panel-close-ease),
+        filter    var(--panel-close-dur) var(--panel-close-ease);
+      will-change: transform, opacity, filter;
+    }
+    /* opening starts from the OPEN distance/scale, closing ends at the CLOSE
+       distance/scale — both resolved on the shared closed state. */
+    .t-panel-slide[data-phase="opening"] {
+      --panel-translate-y: var(--panel-open-distance);
+      --panel-scale-now: var(--panel-scale);
+    }
+    .t-panel-slide[data-phase="closing"] {
+      --panel-translate-y: var(--panel-close-distance);
+      --panel-scale-now: var(--panel-scale-close);
+    }
+    .t-panel-slide[data-open="true"] {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+      filter: blur(0);
+      pointer-events: auto;
+      transition:
+        transform var(--panel-open-dur) var(--panel-open-ease),
+        opacity   var(--panel-open-dur) var(--panel-open-ease),
+        filter    var(--panel-open-dur) var(--panel-open-ease);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .t-panel-slide { transition: none !important; }
+    }
+    /* whole-component reveal (pill → panel): slide up from the bottom dock.
+       keep the transparent padding area click-through even when open. */
+    [data-timeline-panel].t-panel-slide { pointer-events: none; }
+    [data-timeline-panel].t-panel-slide[data-open="true"] { pointer-events: none; }
+
+    /* @inject-skip-start (demo-only transition tweak controls — excluded from the injected build) */
+    /* ═════ live panel-transition tweak controls (demo harness, not part of the panel) ═════ */
+    .panel-controls {
+      position: fixed; top: 16px; right: 16px; z-index: 60;
+      width: 286px; background: #fff; border-radius: 12px;
+      box-shadow: var(--card-shadow); padding: 13px 14px 14px; font-size: 12px;
+      color: var(--c-text); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    }
+    .panel-controls h3 { font-size: 12px; font-weight: 600; letter-spacing: -0.2px; color: #171717;
+      margin-bottom: 11px; display: flex; align-items: center; gap: 6px; }
+    .panel-controls h3 .pc-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c-blue); }
+    .pc-group { font-size: 10px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase;
+      color: var(--c-text-mut); margin: 12px 0 7px; padding-top: 9px; border-top: 1px solid var(--c-line); }
+    .pc-group:first-of-type { margin-top: 4px; }
+    .pc-row { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+    .pc-label { flex: 0 0 76px; color: var(--c-text-mut); }
+    .pc-row input[type=range] { flex: 1; min-width: 0; accent-color: var(--c-blue); }
+    .pc-val { flex: 0 0 54px; text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px; color: #171717; }
+    .pc-select-row { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+    .pc-select-row select { flex: 1; min-width: 0; font: inherit; font-size: 12px; padding: 4px 6px;
+      border-radius: 6px; border: 1px solid var(--c-line); background: #fff; color: #171717; }
+    .pc-bz { display: flex; gap: 6px; margin: 0 0 11px; }
+    .pc-bz input { width: 100%; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px; padding: 4px 4px; border-radius: 6px; border: 1px solid var(--c-line);
+      text-align: center; color: #171717; }
+    .pc-btns { display: flex; gap: 8px; margin-top: 3px; }
+    /* @inject-skip-end */
+    /* .pc-btn* are shared with the refine panel's "Apply all" footer — keep in the build */
+    .pc-btn { flex: 1; font: inherit; font-size: 12px; font-weight: 500; padding: 7px 8px;
+      border-radius: 7px; border: 1px solid var(--c-line); background: #fff; color: #171717; cursor: pointer; }
+    .pc-btn:hover { background: var(--c-ghost-h); }
+    .pc-btn.primary { background: #171717; color: #fff; border-color: #171717; }
+    .pc-btn.primary:hover { background: #000; }
+
+    .tl-refine-btn.is-active { color: var(--c-blue-pressed); }
+    .tl-refine-btn.is-active::before { background: color(display-p3 0 0.451 0.898 / 0.12); }
+
+    /* refine panel slides in from the right using transitions.dev panel reveal
+       tokens (translate + opacity + cross-blur, per-phase open/close dur/ease). */
+    .tl-refine-panel {
+      position: absolute; top: 0; right: 0; bottom: 0; z-index: 6;
+      width: var(--refine-w, 360px); max-width: 100%; overflow: hidden;
+      --panel-translate-x: var(--panel-close-distance);
+      --panel-scale-now: var(--panel-scale-close);
+      transform: translateX(calc(100% + var(--panel-translate-x))) scale(var(--panel-scale-now));
+      opacity: 0;
+      filter: blur(var(--panel-blur));
+      pointer-events: none;
+      transition:
+        transform var(--refine-close-dur) var(--panel-close-ease),
+        opacity   var(--refine-close-dur) var(--panel-close-ease),
+        filter    var(--refine-close-dur) var(--panel-close-ease);
+      will-change: transform, opacity, filter;
+    }
+    .tl-refine-panel[data-phase="opening"] {
+      --panel-translate-x: var(--panel-open-distance);
+      --panel-scale-now: var(--panel-scale);
+    }
+    .tl-refine-panel[data-phase="closing"] {
+      --panel-translate-x: var(--panel-close-distance);
+      --panel-scale-now: var(--panel-scale-close);
+    }
+    .tl-refine-panel[data-open="true"] {
+      transform: translateX(0) scale(1);
+      opacity: 1;
+      filter: blur(0);
+      pointer-events: auto;
+      transition:
+        transform var(--panel-open-dur) var(--panel-open-ease),
+        opacity   var(--panel-open-dur) var(--panel-open-ease),
+        filter    var(--panel-open-dur) var(--panel-open-ease);
+    }
+    .tl-refine-inner {
+      width: var(--refine-w, 360px); height: 100%; box-sizing: border-box;
+      display: flex; flex-direction: column;
+      background: #fff; color: var(--c-text);
+      border-left: 1px solid #f0f0f0;
+      box-shadow: -10px 0 30px rgba(0,0,0,0.05);
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+    }
+    /* header: title block (left) + Agent/Deterministic mode dropdown (right) */
+    /* match the timeline top bar exactly: 10px/14px padding, centered, 57px tall (36px row + 20 + 1px border) */
+    .tl-refine-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; box-sizing: border-box; padding: 10px 14px;
+      border-bottom: 1px solid #f0f0f0; }
+    .tl-refine-titles { min-width: 0; }
+    .tl-refine-titles h3 { font-size: 13px; font-weight: 500; line-height: 14px; color: #17181c; }
+    .tl-refine-titles p { margin-top: 2px; font-size: 12px; font-weight: 400; line-height: 14px; color: #676767;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
+    .tl-refine-actions { flex: none; display: flex; align-items: center; gap: 2px; }
+    .tl-refine-mode { display: flex; align-items: center; gap: 6px; height: 36px;
+      padding: 0 10px 0 12px; border: none; background: transparent; border-radius: 60px; cursor: pointer;
+      font: inherit; font-size: 13px; font-weight: 500; line-height: 16px; color: #1b1b1b;
+      transition: background 0.14s ease; }
+    .tl-refine-mode:hover, .tl-refine-mode.is-open { background: rgba(170,170,170,0.10); }
+    .tl-refine-mode svg { color: var(--c-ruler); }
+    /* close button — Logram design system (node 13065:2266): 36px ghost icon button */
+    .tl-refine-close { flex: none; display: inline-flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border: none; background: transparent; border-radius: 60px; cursor: pointer;
+      color: #676767; transition: background 0.14s ease, color 0.14s ease; }
+    .tl-refine-close:hover { background: rgba(170,170,170,0.10); color: #17181c; }
+    /* refine-type tabs (Small refinements / Replace transition) */
+    .tl-refine-tabs { flex: 0 0 auto; display: flex; align-items: center; gap: 5px; padding: 17px 16px 0; }
+    .tl-refine-tab { height: 32px; padding: 6px 12px; border: none; background: transparent; cursor: pointer;
+      border-radius: 8px; font: inherit; font-size: 13px; font-weight: 500; line-height: 14px; color: #676767;
+      transition: background 0.14s ease, color 0.14s ease; }
+    .tl-refine-tab:hover:not([aria-selected="true"]) { color: #17181c; }
+    .tl-refine-tab[aria-selected="true"] { background: rgba(170,170,170,0.10); color: #17181c; }
+    .tl-refine-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column;
+      padding: 0 16px; }
+    /* idle + unavailable share a vertically-centred column */
+    .tl-refine-center { flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 12px; text-align: center; padding: 16px 0; }
+    .tl-refine-idle-text { max-width: 282px; font-size: 13px; font-weight: 400; line-height: 21px; color: #676767; text-wrap: balance; }
+    .tl-refine-unavail-title { font-size: 13px; font-weight: 400; line-height: 14px; color: #17181c; }
+    .tl-refine-unavail-text { max-width: 232px; font-size: 13px; font-weight: 400; line-height: 21px; color: #676767; text-wrap: balance; }
+    code.tl-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+      color: #17181c; background: #f0f0f0; border-radius: 5px; padding: 1px 5px; }
+    /* results state (suggestions list) */
+    .tl-refine-results { display: flex; flex-direction: column; gap: 10px; padding: 14px 0 20px; }
+    /* results entrance — transitions.dev texts reveal (18): staggered blurred rise */
+    .tl-refine-results.t-stagger {
+      --stagger-dur: 500ms; --stagger-distance: 12px; --stagger-stagger: 40ms;
+      --stagger-blur: 3px; --stagger-ease: cubic-bezier(0.22, 1, 0.36, 1); }
+    .tl-refine-results .t-stagger-line {
+      opacity: 0; transform: translateY(var(--stagger-distance)); filter: blur(var(--stagger-blur));
+      transition: opacity var(--stagger-dur) var(--stagger-ease),
+        transform var(--stagger-dur) var(--stagger-ease),
+        filter var(--stagger-dur) var(--stagger-ease);
+      will-change: transform, opacity, filter; }
+    .tl-refine-results.is-shown .t-stagger-line {
+      opacity: 1; transform: translateY(0); filter: blur(0); }
+    /* foot holds either the Start-scanning button or the in-progress status bar */
+    .tl-refine-foot { flex: 0 0 auto; padding: 12px 20px 26px; display: flex; justify-content: center; }
+    /* card resize (01-card-resize.md): tween width/height on a layout change */
+    .t-resize { transition: width var(--resize-dur) var(--resize-ease),
+      height var(--resize-dur) var(--resize-ease); will-change: width, height;
+      --resize-dur: 300ms; --resize-ease: cubic-bezier(0.22, 1, 0.36, 1); }
+    /* The Start-scanning control IS the loading rectangle — it morphs between the
+       two states with card resize (width/height) plus matching radius/bg/shadow,
+       so clicking it grows the pill into the status box instead of swapping. */
+    .tl-scan-morph { position: relative; isolation: isolate; box-sizing: border-box;
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-bottom: 20px;
+      width: var(--scan-idle-w, 122px); height: 35px; padding: 0 16px;
+      border: none; border-radius: 60px; cursor: pointer;
+      font: inherit; font-size: 13px; font-weight: 500; line-height: 14px; color: #0073e5;
+      background: rgba(0,115,229,0.04); text-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04),
+        inset 0 0 0 1px rgba(0,101,208,0.10),
+        inset 0 -1px 0 0 rgba(0,0,0,0.06),
+        inset 0 0 0 1px rgba(196,196,196,0.10);
+      --resize-dur: 300ms; --resize-ease: cubic-bezier(0.22, 1, 0.36, 1);
+      transition: width var(--resize-dur) var(--resize-ease),
+        height var(--resize-dur) var(--resize-ease),
+        border-radius var(--resize-dur) var(--resize-ease),
+        background var(--resize-dur) var(--resize-ease),
+        color var(--resize-dur) var(--resize-ease),
+        box-shadow var(--resize-dur) var(--resize-ease); }
+    /* explicit refine-footer spacing for both idle + scanning states */
+    .tl-refine-foot .tl-scan-morph { margin-bottom: 20px; }
+    .tl-scan-morph:hover:not(:disabled) { background: rgba(0,115,229,0.08); }
+    .tl-scan-morph:active:not(.is-scanning):not(:disabled) { scale: 0.98; }
+    .tl-scan-morph:disabled:not(.is-scanning) { cursor: default; opacity: 0.45; }
+    .tl-scan-morph.is-scanning { width: 100%; height: 49px; border-radius: 60px;
+      padding: 8px 16px; cursor: default; color: #676767; background: #fff;
+      text-shadow: none; box-shadow: inset 0 0 0 1px #f0f0f0; }
+    /* Two faces share one grid cell and cross-blur (icon swap, 09) between the
+       label and the icon+status; whichever is hidden fades out with blur+scale.
+       overflow:hidden + nowrap keep the status copy on a single line while the
+       box is still narrow mid-morph. */
+    .tl-scan-content { position: relative; z-index: 1; display: grid; width: 100%; height: 100%;
+      min-width: 0; overflow: hidden; }
+    .tl-scan-face { grid-area: 1 / 1; display: flex; align-items: center; gap: 8px;
+      min-width: 0; white-space: nowrap;
+      --icon-swap-dur: 250ms; --icon-swap-blur: 2px; --icon-swap-ease: ease-in-out;
+      transition: opacity var(--icon-swap-dur) var(--icon-swap-ease),
+        filter var(--icon-swap-dur) var(--icon-swap-ease),
+        transform var(--icon-swap-dur) var(--icon-swap-ease);
+      will-change: opacity, filter, transform; }
+    .tl-scan-face-label { justify-content: center; }
+    .tl-scan-face-status { justify-content: flex-start; }
+    /* idle: label shown, status blurred out */
+    .tl-scan-face-label { opacity: 1; filter: blur(0); transform: scale(1); }
+    .tl-scan-face-status { opacity: 0; filter: blur(var(--icon-swap-blur)); transform: scale(0.98); }
+    /* scanning: cross-blur to the status face */
+    .tl-scan-morph.is-scanning .tl-scan-face-label { opacity: 0; filter: blur(var(--icon-swap-blur)); transform: scale(0.98); }
+    .tl-scan-morph.is-scanning .tl-scan-face-status { opacity: 1; filter: blur(0); transform: scale(1); }
+    .tl-scan-label { white-space: nowrap; }
+    /* The BorderBeam library injects its own stylesheet that forces
+       position:relative on its [data-beam] container (and it lands later in the
+       DOM, so it would win at equal specificity). Raise specificity here so the
+       beam stays an absolute overlay filling the button instead of collapsing
+       into flow as a flex sibling (which hid the beam and skewed the width). */
+    .tl-scan-morph .tl-scan-beam { position: absolute; inset: 0; z-index: 0;
+      border-radius: 60px; pointer-events: none;
+      animation: tl-fade-in 360ms var(--resize-ease) both; }
+    .tl-scan-beam-fill { display: block; width: 100%; height: 100%; border-radius: 10px; }
+    @keyframes tl-fade-in { from { opacity: 0; } to { opacity: 1; } }
+    .tl-scan-ic { flex: 0 0 auto; width: 13px; height: 15px; color: #c4c4c4;
+      animation: tl-scan-spin 1.8s linear infinite; }
+    @keyframes tl-scan-spin { to { transform: rotate(360deg); } }
+    /* loading status text — transitions.dev shimmer text (15) + text states swap (04) */
+    .tl-refine-status-text {
+      --shimmer-dur: 2000ms; --shimmer-base: #9a9a9a; --shimmer-highlight: #17181c;
+      --shimmer-band: 400%; --shimmer-ease: linear;
+      --text-swap-dur: 300ms; --text-swap-translate-y: 4px; --text-swap-blur: 2px; --text-swap-ease: ease-in-out; }
+    .t-shimmer { position: relative; display: inline-block; color: var(--shimmer-base); }
+    .t-shimmer::before {
+      content: attr(data-text); position: absolute; inset: 0; pointer-events: none;
+      background-image: linear-gradient(90deg, transparent 0%, transparent 40%,
+        var(--shimmer-highlight) 50%, transparent 60%, transparent 100%);
+      background-size: var(--shimmer-band) 100%; background-repeat: no-repeat;
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent; -webkit-text-fill-color: transparent;
+      animation: t-shimmer var(--shimmer-dur) var(--shimmer-ease) infinite; }
+    @keyframes t-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0% 0; } }
+    .t-text-swap { display: inline-block; transform: translateY(0); filter: blur(0); opacity: 1;
+      transition: transform var(--text-swap-dur) var(--text-swap-ease),
+        filter var(--text-swap-dur) var(--text-swap-ease),
+        opacity var(--text-swap-dur) var(--text-swap-ease);
+      will-change: transform, filter, opacity; }
+    .t-text-swap.is-exit { transform: translateY(calc(var(--text-swap-translate-y) * -1));
+      filter: blur(var(--text-swap-blur)); opacity: 0; }
+    .t-text-swap.is-enter-start { transform: translateY(var(--text-swap-translate-y));
+      filter: blur(var(--text-swap-blur)); opacity: 0; transition: none; }
+    /* mode dropdown rows (Agent / Deterministic) */
+    .tl-mode-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 12px;
+      border: none; background: transparent; border-radius: 8px; cursor: pointer; text-align: left;
+      font: inherit; transition: background 0.12s ease; }
+    .tl-mode-row:hover { background: rgba(170,170,170,0.08); }
+    .tl-mode-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    .tl-mode-row-title { font-size: 14px; font-weight: 500; line-height: 16px; color: #1b1b1b; }
+    .tl-mode-row-desc { font-size: 12px; font-weight: 400; line-height: 18px; color: #676767; text-wrap: balance; }
+    .tl-mode-row-check { flex: 0 0 auto; width: 16px; height: 16px; display: flex; color: #17181c; }
+    @keyframes tl-fade-up { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    /* suggestion cards */
+    .tl-refine-summary { font-size: 12px; color: var(--c-text-mut); margin-bottom: 2px; }
+    .tl-sug { border: 1px solid var(--c-line); border-radius: 10px; padding: 12px 13px;
+      display: flex; flex-direction: column; gap: 8px; background: #fff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+    .tl-sug-top { display: flex; align-items: center; gap: 8px; }
+    .tl-sug-kind { font-size: 10px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase;
+      color: var(--c-blue); background: color(display-p3 0 0.451 0.898 / 0.08); padding: 2px 7px; border-radius: 5px; }
+    .tl-sug-prop { font-size: 12px; font-weight: 600; color: #171717; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .tl-sug-title { font-size: 13px; font-weight: 600; color: #171717; }
+    .tl-sug-delta { font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .tl-sug-from { color: var(--c-text-faint); text-decoration: line-through; }
+    .tl-sug-arrow { color: var(--c-text-faint); }
+    .tl-sug-to { color: var(--c-blue); font-weight: 600; }
+    .tl-sug-reason { font-size: 12px; color: var(--c-text-mut); line-height: 1.45; text-wrap: balance; }
+    .tl-sug-apply { align-self: flex-start; font: inherit; font-size: 12px; font-weight: 500;
+      padding: 6px 12px; border-radius: 7px; border: none; cursor: pointer;
+      background: #171717; color: #fff; transition: background 0.12s ease, scale 0.12s ease; }
+    .tl-sug-apply:hover { background: #000; }
+    .tl-sug-apply:active { scale: 0.97; }
+    .tl-sug-apply.is-applied { background: color(display-p3 0 0.451 0.898 / 0.10); color: var(--c-blue);
+      cursor: default; display: flex; align-items: center; gap: 6px; }
+    .tl-refine-empty { font-size: 13px; color: var(--c-text-mut); padding: 18px 4px; text-align: center; line-height: 1.5; text-wrap: balance; }
+    .tl-refine-error { font-size: 13px; color: #c0392b; padding: 14px; line-height: 1.5;
+      background: rgba(192,57,43,0.06); border-radius: 10px; }
+    .tl-refine-error code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+    .tl-refine-foot { padding: 12px 20px; display: flex; gap: 8px; }
+    @media (prefers-reduced-motion: reduce) {
+      .tl-refine-panel { transition: none; }
+      .tl-scan-ic { animation: none; }
+      .tl-refine-status-text, .tl-sug { animation: none; }
+      .t-shimmer::before { animation: none !important; }
+      .t-text-swap { transition: none !important; }
+      .tl-refine-results .t-stagger-line { transition: none !important; }
+      .t-resize, .tl-scan-morph { transition: none !important; }
+      .tl-scan-face { transition: none !important; }
+      .tl-scan-beam { animation: none !important; }
+      .tl-pill { animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="importmap">
+  { "imports": {
+      "react": "https://esm.sh/react@19?dev",
+      "react-dom": "https://esm.sh/react-dom@19?dev",
+      "react-dom/client": "https://esm.sh/react-dom@19/client?dev",
+      "react/jsx-runtime": "https://esm.sh/react@19/jsx-runtime?dev",
+      "border-beam": "https://esm.sh/border-beam@1.2.0?external=react,react-dom"
+  } }
+  </script>
+  <script type="module">
+    import React from "react";
+    import { createRoot } from "react-dom/client";
+    import { createPortal } from "react-dom";
+    import { BorderBeam } from "border-beam";
+    const { createElement: h, useState, useEffect, useLayoutEffect, useRef, useMemo,
+            useCallback, useSyncExternalStore, createContext, useContext } = React;
+
+    // ── helpers ──
+    function parseCssTime(v) { const t=v.trim(); if(t.endsWith("ms")) return parseFloat(t); if(t.endsWith("s")) return parseFloat(t)*1000; const n=parseFloat(t); return isNaN(n)?0:n; }
+    function formatCssTime(ms) { if(ms>=1000&&ms%1000===0) return `${ms/1000}s`; if(ms>=100) return `${ms/1000}s`; return `${ms}ms`; }
+    function zipTransitionLists(props,durs,dels,eass) { if(!props.length)return[]; return props.map((p,i)=>({ property:p.trim(), durationMs:parseCssTime(durs[i%durs.length]??"0s"), delayMs:parseCssTime(dels[i%dels.length]??"0s"), easing:(eass[i%eass.length]??"ease").trim() })); }
+    function splitCssValues(str) {
+      const parts=[]; let cur="", depth=0;
+      for(let i=0;i<str.length;i++){const c=str[i];if(c==="(")depth++;else if(c===")")depth--;if(c===","&&depth===0){parts.push(cur);cur="";}else{cur+=c;}}
+      if(cur)parts.push(cur); return parts;
+    }
+    function transitionSignature(props,dur,del,ease) { return [...props].sort().join(",")+"|"+dur+"|"+del+"|"+ease; }
+
+    const EASING_PRESETS = [
+      { keyword:"linear", cubic:[0,0,1,1] }, { keyword:"ease", cubic:[0.25,0.1,0.25,1] },
+      { keyword:"ease-in", cubic:[0.42,0,1,1] }, { keyword:"ease-out", cubic:[0,0,0.58,1] },
+      { keyword:"ease-in-out", cubic:[0.42,0,0.58,1] },
+    ];
+    const kwMap = new Map(EASING_PRESETS.map(e=>[e.keyword,e]));
+    function easingToCubic(v) { const p=kwMap.get(v); if(p)return p.cubic; const m=v.match(/cubic-bezier\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/); if(m)return[parseFloat(m[1]),parseFloat(m[2]),parseFloat(m[3]),parseFloat(m[4])]; return null; }
+
+    // Easing dropdown library. `group` rows are non-selectable section headers.
+    // Motion tokens are the verbatim cubic-beziers shipped by the transitions.dev
+    // skill (_root.css); the "Common" set are the standard easings.net curves.
+    const EASING_LIBRARY = [
+      { group:"Standard" },
+      { label:"Linear", value:"linear" },
+      { label:"Ease", value:"ease" },
+      { label:"Ease in", value:"ease-in" },
+      { label:"Ease out", value:"ease-out" },
+      { label:"Ease in-out", value:"ease-in-out" },
+      { group:"Motion tokens (transitions.dev)" },
+      { label:"Smooth out", value:"cubic-bezier(0.22, 1, 0.36, 1)", usage:"The transitions.dev default — dropdown, modal, panel, tabs, page slides, accordion." },
+      { label:"Standard close", value:"cubic-bezier(0.4, 0, 0.2, 1)", usage:"Material-style accelerate→decelerate. Used for badge close / calm exits." },
+      { label:"Pop overshoot", value:"cubic-bezier(0.34, 1.36, 0.64, 1)", usage:"Notification badge pop-in — a small overshoot past the target." },
+      { label:"Digit pop", value:"cubic-bezier(0.34, 1.45, 0.64, 1)", usage:"Number pop-in — slightly springier overshoot for counting digits." },
+      { label:"Morph open", value:"cubic-bezier(0.34, 1.25, 0.64, 1)", usage:"Plus-to-menu morph open — gentle bouncy expand." },
+      { label:"Check bob", value:"cubic-bezier(0.34, 1.35, 0.64, 1)", usage:"Success check bob — playful settle on confirmation." },
+      { label:"Big overshoot", value:"cubic-bezier(0.34, 3.85, 0.64, 1)", usage:"Avatar group hover return — aggressive, spring-like overshoot." },
+      { group:"Common (easings.net)" },
+      { label:"Sine in", value:"cubic-bezier(0.12, 0, 0.39, 0)" },
+      { label:"Sine out", value:"cubic-bezier(0.61, 1, 0.88, 1)" },
+      { label:"Sine in-out", value:"cubic-bezier(0.37, 0, 0.63, 1)" },
+      { label:"Cubic in", value:"cubic-bezier(0.32, 0, 0.67, 0)" },
+      { label:"Cubic out", value:"cubic-bezier(0.33, 1, 0.68, 1)" },
+      { label:"Cubic in-out", value:"cubic-bezier(0.65, 0, 0.35, 1)" },
+      { label:"Quart in", value:"cubic-bezier(0.5, 0, 0.75, 0)" },
+      { label:"Quart out", value:"cubic-bezier(0.25, 1, 0.5, 1)" },
+      { label:"Quart in-out", value:"cubic-bezier(0.76, 0, 0.24, 1)" },
+      { label:"Expo in", value:"cubic-bezier(0.7, 0, 0.84, 0)" },
+      { label:"Expo out", value:"cubic-bezier(0.16, 1, 0.3, 1)" },
+      { label:"Expo in-out", value:"cubic-bezier(0.87, 0, 0.13, 1)" },
+      { label:"Circ in", value:"cubic-bezier(0.55, 0, 1, 0.45)" },
+      { label:"Circ out", value:"cubic-bezier(0, 0.55, 0.45, 1)" },
+      { label:"Circ in-out", value:"cubic-bezier(0.85, 0, 0.15, 1)" },
+      { label:"Back in", value:"cubic-bezier(0.36, 0, 0.66, -0.56)" },
+      { label:"Back out", value:"cubic-bezier(0.34, 1.56, 0.64, 1)" },
+      { label:"Back in-out", value:"cubic-bezier(0.68, -0.6, 0.32, 1.6)" },
+      { group:"Custom" },
+      { label:"cubic-bezier(\u2026)", value:"__cubic" },
+      { label:"custom", value:"__custom" },
+    ];
+    const normEase = s => (s||"").replace(/\s+/g,"");
+    const EASING_LABEL = new Map(EASING_LIBRARY.filter(o=>o.value&&o.value[0]!=="_").map(o=>[normEase(o.value),o.label]));
+    function easingLabel(v){ return EASING_LABEL.get(normEase(v)) || null; }
+
+    // Most-common predefined springs. tension/friction follow react-spring's
+    // naming (tension≈stiffness, friction≈damping, mass=1) so the presets match
+    // what designers already know from react-spring / Framer / SwiftUI.
+    const SPRING_PRESETS = [
+      { label:"Default",  stiffness:170, damping:26,  mass:1, usage:"Balanced, barely-there overshoot. react-spring's default." },
+      { label:"Gentle",   stiffness:120, damping:14,  mass:1, usage:"Soft and relaxed with a light overshoot." },
+      { label:"Wobbly",   stiffness:180, damping:12,  mass:1, usage:"Loose and playful — pronounced multi-bounce." },
+      { label:"Stiff",    stiffness:210, damping:20,  mass:1, usage:"Quick and tight with minimal bounce." },
+      { label:"Slow",     stiffness:280, damping:60,  mass:1, usage:"Heavy and deliberate, no overshoot." },
+      { label:"Molasses", stiffness:280, damping:120, mass:1, usage:"Very heavy and slow — fully damped." },
+      { label:"Bouncy",   stiffness:200, damping:10,  mass:1, usage:"High-energy, several decaying bounces." },
+      { label:"Snappy",   stiffness:300, damping:24,  mass:1, usage:"Fast response, crisp settle." },
+      { label:"Smooth",   stiffness:240, damping:32,  mass:1, usage:"Critically damped — fast, zero overshoot." },
+    ];
+    function matchSpringPreset(p){
+      if(!p) return null;
+      const m = SPRING_PRESETS.find(s=>s.stiffness===p.stiffness&&s.damping===p.damping&&s.mass===p.mass);
+      return m ? m.label : "Custom";
+    }
+
+    // Numerically integrate a damped harmonic oscillator animating 0→1. The settle
+    // time (and therefore the CSS duration) EMERGES from stiffness/damping/mass —
+    // it is never set by hand. We then sample the motion into a CSS linear() easing
+    // so a real spring curve (overshoot + decaying oscillation) plays in the browser.
+    const _springCache = new Map();
+    function simulateSpring(stiffness, damping, mass){
+      const k = Math.max(1, stiffness), c = Math.max(0, damping), m = Math.max(0.1, mass);
+      const key = k+"|"+c+"|"+m;
+      if(_springCache.has(key)) return _springCache.get(key);
+      const dt = 1/360, maxT = 6, rest = 0.0015, target = 1;
+      let x = 0, v = 0, lastUnsettled = 0;
+      const pos = [];
+      for(let t=0; t<=maxT+dt; t+=dt){
+        pos.push(x);
+        const a = (-k*(x-target) - c*v)/m;
+        v += a*dt; x += v*dt;
+        if(Math.abs(x-target)>rest || Math.abs(v)>rest) lastUnsettled = t;
+      }
+      const settleT = Math.min(maxT, Math.max(0.08, lastUnsettled + dt*2));
+      const N = 60, values = [];
+      for(let i=0;i<=N;i++){
+        const fi = ((i/N)*settleT)/dt;
+        const i0 = Math.floor(fi), i1 = Math.min(pos.length-1, i0+1), f = fi-i0;
+        values.push(pos[i0]*(1-f) + pos[i1]*f);
+      }
+      values[0] = 0; values[N] = 1;
+      const css = "linear(" + values.map(val=>Math.round(val*10000)/10000).join(", ") + ")";
+      const out = { durationMs: Math.round(settleT*1000), css, values };
+      _springCache.set(key, out);
+      return out;
+    }
+
+    // ── registry (per-property overrides) ──
+    class TransitionRegistry {
+      entries=new Map(); listeners=new Set(); propOverrides=new Map(); snapshot=[]; effectiveCache=new Map();
+      register(e){ this.entries.set(e.id,e); this._notify(); }
+      unregister(id){ this.entries.delete(id); this.propOverrides.delete(id); this._notify(); }
+      replaceAll(list){ this.entries.clear(); for(const e of list) this.entries.set(e.id,e); this._notify(); }
+      get(id){ return this.entries.get(id); }
+      getAll(){ return this.snapshot; }
+      getEffective(id){ return this.effectiveCache.get(id); }
+      setPropOverride(id, prop, o){
+        const m = this.propOverrides.get(id) || {};
+        m[prop] = { ...m[prop], ...o };
+        this.propOverrides.set(id, m);
+        this._notify();
+      }
+      clearOverride(id){ this.propOverrides.delete(id); this._notify(); }
+      getPropOverrides(id){ return this.propOverrides.get(id); }
+      subscribe(fn){ this.listeners.add(fn); return ()=>this.listeners.delete(fn); }
+      _notify(){
+        this.snapshot=Array.from(this.entries.values());
+        this.effectiveCache.clear();
+        for(const[id,entry]of this.entries){
+          const po = this.propOverrides.get(id) || {};
+          const timings = (entry.propertyTimings || entry.properties.map(p=>({property:p,durationMs:entry.durationMs,delayMs:entry.delayMs,easing:entry.easing})));
+          const effTimings = timings.map(t => {
+            const o = po[t.property];
+            return { property:t.property, durationMs:o?.durationMs??t.durationMs, delayMs:o?.delayMs??t.delayMs, easing:o?.easing??t.easing, spring:o?.spring??t.spring };
+          });
+          this.effectiveCache.set(id, { ...entry, effectiveTimings: effTimings });
+        }
+        for(const fn of this.listeners) fn(this.snapshot);
+      }
+    }
+
+    // ── preview controller ──
+    class PreviewController {
+      state="idle"; listeners=new Set(); cleanups=[]; animations=[]; progressListeners=new Set(); _rafId=null; scanner=null; _gen=0;
+      rate=1; loop=false; _current=null;
+      setScanner(s){this.scanner=s;} getState(){return this.state;}
+      setRate(r){this.rate=r;for(const a of this.animations){try{a.playbackRate=r;}catch{}}}
+      setLoop(v){this.loop=v;}
+      subscribe(fn){this.listeners.add(fn);return()=>this.listeners.delete(fn);}
+      onProgress(fn){this.progressListeners.add(fn);return()=>this.progressListeners.delete(fn);}
+      play(entry){this.stop();this._gen++;this._current=entry;
+        if(this.scanner)this.scanner.pause();if(entry.bindings.type==="css")this._playCss(entry,this._gen);this._setState("playing");}
+      pause(){if(this.state!=="playing")return;for(const a of this.animations){try{a.pause();}catch{}}this._stopPL();this._setState("paused");}
+      resume(){if(this.state!=="paused")return;for(const a of this.animations){try{a.play();}catch{}}this._startPL();this._setState("playing");}
+      stop(){this._stopPL();for(const a of this.animations){try{a.cancel();}catch{}}this.animations=[];for(const c of this.cleanups)c();this.cleanups=[];this._ep(0);if(this.scanner)this.scanner.unpause();this._setState("idle");}
+      restart(entry){this.stop();requestAnimationFrame(()=>this.play(entry));}
+      playPaused(entry,seekMs){
+        this.stop();this._gen++;const gen=this._gen;
+        this._pendingSeek=seekMs;
+        if(this.scanner)this.scanner.pause();
+        if(entry.bindings.type!=="css")return;
+        this.animations=[];
+        const et=entry.effectiveTimings||entry.properties.map(p=>({property:p,durationMs:entry.durationMs,delayMs:entry.delayMs,easing:entry.easing}));
+        for(const wr of entry.bindings.elements){const el=wr.deref();if(!el)continue;const saved=el.style.transition;
+          const tv=et.map(t=>`${t.property} ${formatCssTime(t.durationMs)} ${t.easing} ${formatCssTime(t.delayMs)}`).join(", ");
+          el.style.transition=tv;el.click();
+          requestAnimationFrame(()=>{if(this._gen!==gen)return;const running=el.getAnimations();
+            for(const a of running){a.pause();a.playbackRate=this.rate;this.animations.push(a);}
+            const t=this._pendingSeek??seekMs;
+            if(t!=null){for(const a of this.animations){try{a.currentTime=t;}catch{}}this._ep(t);}
+          });
+          this.cleanups.push(()=>{el.style.transition=saved;});}
+        this._setState("paused");
+        if(seekMs!=null)this._ep(seekMs);
+      }
+      seek(timeMs){
+        if(this.state==="idle")return;
+        if(this.state==="playing"){for(const a of this.animations){try{a.pause();}catch{}}this._stopPL();this._setState("paused");}
+        for(const a of this.animations){try{a.currentTime=timeMs;}catch{}}
+        this._ep(timeMs);
+        this._pendingSeek=timeMs;
+      }
+      _finish(){this._stopPL();if(this.animations.length>0){let end=0;for(const a of this.animations){const t=a.effect?.getTiming();const e=(t?.delay??0)+(Number(t?.duration)||0);if(e>end)end=e;}this._ep(end);}this.animations=[];for(const c of this.cleanups)c();this.cleanups=[];if(this.scanner)this.scanner.unpause();this._setState("idle");}
+      _playCss(entry,gen){if(entry.bindings.type!=="css")return;this.animations=[];
+        const et = entry.effectiveTimings || entry.properties.map(p=>({property:p,durationMs:entry.durationMs,delayMs:entry.delayMs,easing:entry.easing}));
+        for(const wr of entry.bindings.elements){const el=wr.deref();if(!el)continue;const saved=el.style.transition;
+          const tv=et.map(t=>`${t.property} ${formatCssTime(t.durationMs)} ${t.easing} ${formatCssTime(t.delayMs)}`).join(", ");
+          el.style.transition=tv;el.click();
+          requestAnimationFrame(()=>{if(this._gen!==gen)return;const running=el.getAnimations();for(const a of running){a.playbackRate=this.rate;this.animations.push(a);}this._startPL();
+            if(running.length>0){Promise.allSettled(running.map(a=>a.finished)).then(()=>{if(this._gen!==gen||this.state!=="playing")return;if(this.loop&&this._current){this.play(this._current);}else{this._finish();}});}else{this._finish();}});
+          this.cleanups.push(()=>{el.style.transition=saved;});}}
+      _startPL(){this._stopPL();const tick=()=>{if(this.animations.length>0){let cur=0;for(const a of this.animations){const c=Number(a.currentTime)||0;if(c>cur)cur=c;}this._ep(cur);}this._rafId=requestAnimationFrame(tick);};this._rafId=requestAnimationFrame(tick);}
+      _stopPL(){if(this._rafId!==null){cancelAnimationFrame(this._rafId);this._rafId=null;}}
+      _ep(p){for(const fn of this.progressListeners)fn(p);}
+      _setState(s){this.state=s;for(const fn of this.listeners)fn(s);}
+    }
+
+    // ── scanner ──
+    class DomScanner {
+      observer=null;rafId=null;running=false;paused=false;
+      constructor(root,reg){this.root=root;this.registry=reg;}
+      pause(){this.paused=true;} unpause(){this.paused=false;this._sched();}
+      start(){if(this.running)return;this.running=true;this.scan();this.observer=new MutationObserver(()=>this._sched());this.observer.observe(this.root,{childList:true,subtree:true,attributes:true,attributeFilter:["class","style"]});}
+      stop(){this.running=false;this.observer?.disconnect();this.observer=null;if(this.rafId!==null){cancelAnimationFrame(this.rafId);this.rafId=null;}}
+      _sched(){if(this.rafId!==null)return;this.rafId=requestAnimationFrame(()=>{this.rafId=null;if(this.running&&!this.paused)this.scan();});}
+      scan(){const seen=new Map();const w=document.createTreeWalker(this.root,NodeFilter.SHOW_ELEMENT);let n=w.currentNode;while(n){if(n instanceof HTMLElement)this._proc(n,seen);n=w.nextNode();}this.registry.replaceAll(Array.from(seen.values()));}
+      _proc(el,seen){
+        if(el.closest("[data-timeline-panel]"))return;
+        const s=getComputedStyle(el); const rp=s.transitionProperty;
+        if(!rp||rp==="none"||rp==="all")return;
+        const props=rp.split(",").map(p=>p.trim());
+        const durs=(s.transitionDuration||"0s").split(",");
+        const dels=(s.transitionDelay||"0s").split(",");
+        const eass=splitCssValues(s.transitionTimingFunction||"ease");
+        const z=zipTransitionLists(props,durs,dels,eass);
+        if(!z.length||z.every(x=>x.durationMs===0&&x.delayMs===0))return;
+        const pDur=z[0].durationMs,pDel=z[0].delayMs,pEase=z[0].easing;
+        const allP=z.map(x=>x.property);
+        const sig=transitionSignature(allP,pDur,pDel,pEase);
+        if(seen.has(sig)){const ex=seen.get(sig);if(ex.bindings.type==="css")ex.bindings.elements.push(new WeakRef(el));return;}
+        seen.set(sig,{ id:"css-"+sig, label:this._lbl(el), durationMs:pDur, delayMs:pDel, easing:pEase,
+          properties:allP, propertyTimings:z, source:"css",
+          bindings:{type:"css",elements:[new WeakRef(el)],selector:this._sel(el)} });
+      }
+      _lbl(el){return el.getAttribute("data-testid")||el.getAttribute("aria-label")||(el.id?"#"+el.id:null)||(typeof el.className==="string"&&el.className.trim()?el.tagName.toLowerCase()+"."+el.className.trim().split(/\s+/).slice(0,2).join("."):el.tagName.toLowerCase());}
+      _sel(el){if(el.id)return"#"+el.id;const p=[];let c=el,d=0;while(c&&d<3){let s=c.tagName.toLowerCase();if(c.id){p.unshift("#"+c.id);break;}if(c.className&&typeof c.className==="string"){const cls=c.className.trim().split(/\s+/)[0];if(cls)s+="."+cls;}p.unshift(s);c=c.parentElement;d++;}return p.join(" > ");}
+    }
+
+    // ── hooks ──
+    const TimelineCtx = createContext(null);
+    function useReg(){const{registry}=useContext(TimelineCtx);return useSyncExternalStore(useCallback(cb=>registry.subscribe(cb),[registry]),useCallback(()=>registry.getAll(),[registry]),useCallback(()=>registry.getAll(),[registry]));}
+    function useActive(){const{activeId,setActiveId,registry}=useContext(TimelineCtx);const active=useSyncExternalStore(useCallback(cb=>registry.subscribe(cb),[registry]),useCallback(()=>activeId?registry.getEffective(activeId):undefined,[registry,activeId]),useCallback(()=>activeId?registry.getEffective(activeId):undefined,[registry,activeId]));return{active,setActiveId};}
+    function usePlayback(){const{preview,registry,activeId}=useContext(TimelineCtx);const state=useSyncExternalStore(useCallback(cb=>preview.subscribe(cb),[preview]),useCallback(()=>preview.getState(),[preview]),useCallback(()=>preview.getState(),[preview]));
+      return{state,play:useCallback(()=>{if(!activeId)return;const e=registry.getEffective(activeId);if(e)preview.play(e);},[preview,registry,activeId]),pause:useCallback(()=>preview.pause(),[preview]),resume:useCallback(()=>preview.resume(),[preview]),restart:useCallback(()=>{if(!activeId)return;const e=registry.getEffective(activeId);if(e)preview.restart(e);},[preview,registry,activeId]),stop:useCallback(()=>preview.stop(),[preview])};}
+    function usePropOverride(){const{registry,activeId}=useContext(TimelineCtx);return{setPropOverride:useCallback((prop,o)=>{if(activeId)registry.setPropOverride(activeId,prop,o);},[registry,activeId])};}
+
+    // ── components ──
+    const BASE_SCALE_MS = 5000;
+    const ZOOM_MIN = 25;
+    const ZOOM_MAX = 400;
+    const ZOOM_DEFAULT = 100;
+    const scaleFromZoom = zoom => Math.round(BASE_SCALE_MS * 100 / zoom);
+    const LABEL_W = 150;
+    const CLOSE_MS = 150;
+    const SPEEDS = [0.25, 0.5, 1, 2];
+    const DURATION_TOKENS = [
+      {label:"Duration-fast", ms:150, usage:"Quick state changes — hovers, toggles, button presses, dropdown & modal close, text swaps."},
+      {label:"Duration-medium", ms:250, usage:"Standard UI motion — icon swaps, dropdown & modal open, sliding tabs, page slides."},
+      {label:"Duration-slow", ms:400, usage:"Larger surfaces — panel open, skeleton reveals, input clear."},
+      {label:"Duration-very-slow", ms:600, usage:"Emphasis & page-level moments — hero animations, big choreographed transitions."},
+    ];
+    const DELAY_TOKENS = [
+      {label:"None", ms:0, usage:"No delay — motion begins immediately."},
+      {label:"Short", ms:50, usage:"Slight offset to sequence closely related elements."},
+      {label:"Medium", ms:150, usage:"Stagger between grouped elements for a cascading feel."},
+      {label:"Long", ms:300, usage:"Pronounced wait — use sparingly to draw attention."},
+    ];
+    function cx(...a){ return a.filter(Boolean).join(" "); }
+    function fmtTimecode(ms){ const m=Math.floor(ms/60000); const s=Math.floor((ms%60000)/1000); const c=Math.floor((ms%1000)/10); const p=n=>String(n).padStart(2,"0"); return p(m)+":"+p(s)+":"+p(c); }
+    function fmtSpeed(s){ return s+"x"; }
+
+    // ── icons ──
+    // Exact SVGs exported from the Logram ❖ Design System Figma file (no recreations).
+    // Source icons are exported with currentColor so they inherit the button's color.
+    // Timeline-design icons are 16px-native; library icons (pause/stop/check/help) are
+    // 24px-native, so their stroke weight is normalized to read ~1.6px at toolbar size.
+    const ICONS = {
+      play:    {vb:"0 0 10 12", svg:`<path d="M9.49453 6.92883L1.54117 11.8508C0.866207 12.2681 0 11.7628 0 10.9216V1.07765C0 0.237764 0.864957 -0.268832 1.54117 0.149776L9.49453 5.07175C9.64807 5.16524 9.7757 5.30037 9.86447 5.46344C9.95324 5.62651 10 5.81172 10 6.00029C10 6.18885 9.95324 6.37407 9.86447 6.53714C9.7757 6.70021 9.64807 6.83534 9.49453 6.92883Z" fill="currentColor"/>`},
+      pause:   {vb:"0 0 24 24", svg:`<path d="M5.75 3C4.7835 3 4 3.7835 4 4.75V19.25C4 20.2165 4.7835 21 5.75 21H8.25C9.2165 21 10 20.2165 10 19.25V4.75C10 3.7835 9.2165 3 8.25 3H5.75Z" fill="currentColor"/><path d="M15.75 3C14.7835 3 14 3.7835 14 4.75V19.25C14 20.2165 14.7835 21 15.75 21H18.25C19.2165 21 20 20.2165 20 19.25V4.75C20 3.7835 19.2165 3 18.25 3H15.75Z" fill="currentColor"/>`},
+      stop:    {vb:"0 0 24 24", svg:`<path fill-rule="evenodd" clip-rule="evenodd" d="M5.32378 3C5.3325 3 5.34124 3 5.35 3L18.6762 3C18.9337 2.99998 19.1702 2.99997 19.3679 3.01612C19.581 3.03353 19.8142 3.07339 20.0445 3.19074C20.3738 3.35852 20.6415 3.62624 20.8093 3.95552C20.9266 4.18583 20.9665 4.419 20.9839 4.63213C21 4.82981 21 5.06629 21 5.32377V18.6762C21 18.9337 21 19.1702 20.9839 19.3679C20.9665 19.581 20.9266 19.8142 20.8093 20.0445C20.6415 20.3738 20.3738 20.6415 20.0445 20.8093C19.8142 20.9266 19.581 20.9665 19.3679 20.9839C19.1702 21 18.9337 21 18.6762 21H5.32377C5.06629 21 4.82981 21 4.63213 20.9839C4.419 20.9665 4.18583 20.9266 3.95552 20.8093C3.62624 20.6415 3.35852 20.3738 3.19074 20.0445C3.07339 19.8142 3.03353 19.581 3.01612 19.3679C2.99997 19.1702 2.99998 18.9337 3 18.6762L3 5.35C3 5.34124 3 5.3325 3 5.32379C2.99998 5.0663 2.99997 4.82982 3.01612 4.63213C3.03353 4.419 3.07339 4.18583 3.19074 3.95552C3.35852 3.62624 3.62624 3.35852 3.95552 3.19074C4.18583 3.07339 4.419 3.03353 4.63213 3.01612C4.82982 2.99997 5.0663 2.99998 5.32378 3Z" fill="currentColor"/>`},
+      restart: {vb:"0 0 16 16", svg:`<path d="M1.33333 6.66667C1.33333 6.66667 2.66999 4.84548 3.75589 3.75883C4.84179 2.67218 6.3424 2 8 2C11.3137 2 14 4.68629 14 8C14 11.3137 11.3137 14 8 14C5.2646 14 2.95674 12.1695 2.23451 9.66667M5.33333 6.66667H1.33333V2.66667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`},
+      copy:    {vb:"0 0 16 16", svg:`<path d="M5.3335 5.33325V3.46659C5.3335 2.71985 5.3335 2.34648 5.47882 2.06126C5.60665 1.81038 5.81063 1.60641 6.06151 1.47858C6.34672 1.33325 6.72009 1.33325 7.46683 1.33325H12.5335C13.2802 1.33325 13.6536 1.33325 13.9388 1.47858C14.1897 1.60641 14.3937 1.81038 14.5215 2.06126C14.6668 2.34648 14.6668 2.71985 14.6668 3.46659V8.53325C14.6668 9.27999 14.6668 9.65336 14.5215 9.93857C14.3937 10.1895 14.1897 10.3934 13.9388 10.5213C13.6536 10.6666 13.2802 10.6666 12.5335 10.6666H10.6668M3.46683 14.6666H8.5335C9.28023 14.6666 9.6536 14.6666 9.93882 14.5213C10.1897 14.3934 10.3937 14.1895 10.5215 13.9386C10.6668 13.6534 10.6668 13.28 10.6668 12.5333V7.46658C10.6668 6.71985 10.6668 6.34648 10.5215 6.06126C10.3937 5.81038 10.1897 5.60641 9.93882 5.47858C9.6536 5.33325 9.28023 5.33325 8.5335 5.33325H3.46683C2.72009 5.33325 2.34672 5.33325 2.06151 5.47858C1.81063 5.60641 1.60665 5.81038 1.47882 6.06126C1.3335 6.34648 1.3335 6.71985 1.3335 7.46658V12.5333C1.3335 13.28 1.3335 13.6534 1.47882 13.9386C1.60665 14.1895 1.81063 14.3934 2.06151 14.5213C2.34672 14.6666 2.72009 14.6666 3.46683 14.6666Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>`},
+      check:   {vb:"0 0 16 16", svg:`<path d="M3 7.88889L5.76923 11L12 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`},
+      chevron: {vb:"0 0 16 16", svg:`<path fill-rule="evenodd" clip-rule="evenodd" d="M4.46967 6.46967C4.76256 6.17678 5.23744 6.17678 5.53033 6.46967L8 8.93934L10.4697 6.46967C10.7626 6.17678 11.2374 6.17678 11.5303 6.46967C11.8232 6.76256 11.8232 7.23744 11.5303 7.53033L8.53033 10.5303C8.23744 10.8232 7.76256 10.8232 7.46967 10.5303L4.46967 7.53033C4.17678 7.23744 4.17678 6.76256 4.46967 6.46967Z" fill="currentColor"/>`},
+      gear:    {vb:"0 0 16 16", svg:`<path d="M8.00016 9.99992C9.10473 9.99992 10.0002 9.10449 10.0002 7.99992C10.0002 6.89535 9.10473 5.99992 8.00016 5.99992C6.89559 5.99992 6.00016 6.89535 6.00016 7.99992C6.00016 9.10449 6.89559 9.99992 8.00016 9.99992Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.485 9.8181C12.4043 10.0009 12.3803 10.2037 12.4159 10.4003C12.4516 10.5969 12.5453 10.7783 12.685 10.9211L12.7214 10.9575C12.8341 11.0701 12.9235 11.2038 12.9845 11.3509C13.0455 11.498 13.0769 11.6558 13.0769 11.8151C13.0769 11.9744 13.0455 12.1321 12.9845 12.2792C12.9235 12.4264 12.8341 12.5601 12.7214 12.6726C12.6088 12.7853 12.4751 12.8747 12.328 12.9357C12.1808 12.9967 12.0231 13.0281 11.8638 13.0281C11.7045 13.0281 11.5468 12.9967 11.3996 12.9357C11.2525 12.8747 11.1188 12.7853 11.0062 12.6726L10.9699 12.6363C10.827 12.4966 10.6456 12.4028 10.449 12.3672C10.2524 12.3315 10.0496 12.3556 9.86683 12.4363C9.68757 12.5131 9.5347 12.6407 9.42702 12.8033C9.31933 12.9659 9.26155 13.1564 9.26077 13.3514V13.4545C9.26077 13.7759 9.13306 14.0842 8.90575 14.3116C8.67843 14.5389 8.37012 14.6666 8.04865 14.6666C7.72717 14.6666 7.41887 14.5389 7.19155 14.3116C6.96423 14.0842 6.83653 13.7759 6.83653 13.4545V13.3999C6.83183 13.1993 6.7669 13.0048 6.65017 12.8416C6.53344 12.6783 6.37031 12.554 6.18198 12.4848C5.99918 12.4041 5.79641 12.38 5.59981 12.4157C5.4032 12.4513 5.22179 12.545 5.07895 12.6848L5.04259 12.7211C4.93001 12.8338 4.79633 12.9232 4.64918 12.9842C4.50203 13.0452 4.3443 13.0766 4.18501 13.0766C4.02572 13.0766 3.86799 13.0452 3.72084 12.9842C3.57369 12.9232 3.44001 12.8338 3.32744 12.7211C3.21474 12.6086 3.12533 12.4749 3.06433 12.3277C3.00333 12.1806 2.97194 12.0228 2.97194 11.8636C2.97194 11.7043 3.00333 11.5465 3.06433 11.3994C3.12533 11.2522 3.21474 11.1186 3.32744 11.006L3.3638 10.9696C3.50352 10.8268 3.59724 10.6454 3.63289 10.4488C3.66854 10.2522 3.64447 10.0494 3.5638 9.86658C3.48697 9.68733 3.35941 9.53445 3.19681 9.42677C3.03421 9.31909 2.84367 9.2613 2.64865 9.26052H2.54562C2.22414 9.26052 1.91583 9.13282 1.68852 8.9055C1.4612 8.67819 1.3335 8.36988 1.3335 8.0484C1.3335 7.72693 1.4612 7.41862 1.68852 7.1913C1.91583 6.96399 2.22414 6.83628 2.54562 6.83628H2.60016C2.80077 6.83159 2.99532 6.76666 3.15853 6.64992C3.32173 6.53319 3.44605 6.37006 3.51531 6.18174C3.59599 5.99894 3.62006 5.79616 3.58441 5.59956C3.54876 5.40296 3.45503 5.22154 3.31531 5.07871L3.27895 5.04234C3.16625 4.92977 3.07685 4.79609 3.01585 4.64894C2.95485 4.50179 2.92345 4.34406 2.92345 4.18477C2.92345 4.02548 2.95485 3.86775 3.01585 3.7206C3.07685 3.57345 3.16625 3.43976 3.27895 3.32719C3.39152 3.21449 3.52521 3.12509 3.67236 3.06409C3.81951 3.00309 3.97723 2.97169 4.13653 2.97169C4.29582 2.97169 4.45355 3.00309 4.6007 3.06409C4.74785 3.12509 4.88153 3.21449 4.9941 3.32719L5.03047 3.36355C5.1733 3.50327 5.35472 3.597 5.55132 3.63265C5.74792 3.6683 5.9507 3.64423 6.1335 3.56355H6.18198C6.36123 3.48673 6.51411 3.35916 6.62179 3.19656C6.72948 3.03396 6.78726 2.84343 6.78804 2.6484V2.54537C6.78804 2.2239 6.91575 1.91559 7.14306 1.68827C7.37038 1.46096 7.67869 1.33325 8.00016 1.33325C8.32164 1.33325 8.62994 1.46096 8.85726 1.68827C9.08458 1.91559 9.21228 2.2239 9.21228 2.54537V2.59992C9.21306 2.79494 9.27085 2.98548 9.37853 3.14808C9.48621 3.31068 9.63909 3.43824 9.81834 3.51507C10.0011 3.59575 10.2039 3.61981 10.4005 3.58416C10.5971 3.54852 10.7785 3.45479 10.9214 3.31507L10.9577 3.27871C11.0703 3.16601 11.204 3.0766 11.3511 3.0156C11.4983 2.9546 11.656 2.92321 11.8153 2.92321C11.9746 2.92321 12.1323 2.9546 12.2795 3.0156C12.4266 3.0766 12.5603 3.16601 12.6729 3.27871C12.7856 3.39128 12.875 3.52496 12.936 3.67211C12.997 3.81926 13.0284 3.97699 13.0284 4.13628C13.0284 4.29557 12.997 4.4533 12.936 4.60045C12.875 4.7476 12.7856 4.88128 12.6729 4.99386L12.6365 5.03022C12.4968 5.17306 12.4031 5.35447 12.3674 5.55108C12.3318 5.74768 12.3558 5.95045 12.4365 6.13325V6.18174C12.5134 6.36099 12.6409 6.51387 12.8035 6.62155C12.9661 6.72923 13.1567 6.78702 13.3517 6.7878H13.4547C13.7762 6.7878 14.0845 6.9155 14.3118 7.14282C14.5391 7.37014 14.6668 7.67844 14.6668 7.99992C14.6668 8.32139 14.5391 8.6297 14.3118 8.85702C14.0845 9.08433 13.7762 9.21204 13.4547 9.21204H13.4002C13.2051 9.21282 13.0146 9.2706 12.852 9.37829C12.6894 9.48597 12.5618 9.63885 12.485 9.8181Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>`},
+      wand:    {vb:"0 0 16 16", svg:`<path d="M8.66657 9.33325L6.66657 7.33325M10.0068 2.33325V1.33325M12.633 3.37369L13.3401 2.66659M12.633 8.66658L13.3401 9.37369M7.34013 3.37369L6.63303 2.66659M13.6735 5.99992H14.6735M4.08748 13.9123L10.2457 7.75417C10.5097 7.49015 10.6417 7.35815 10.6911 7.20593C10.7346 7.07203 10.7346 6.9278 10.6911 6.79391C10.6417 6.64169 10.5097 6.50968 10.2457 6.24567L9.75415 5.75417C9.49013 5.49015 9.35813 5.35815 9.20591 5.30869C9.07201 5.26518 8.92778 5.26518 8.79389 5.30869C8.64167 5.35815 8.50966 5.49015 8.24565 5.75417L2.08748 11.9123C1.82347 12.1763 1.69146 12.3084 1.642 12.4606C1.5985 12.5945 1.5985 12.7387 1.642 12.8726C1.69146 13.0248 1.82347 13.1568 2.08748 13.4208L2.57899 13.9123C2.843 14.1763 2.975 14.3084 3.12722 14.3578C3.26112 14.4013 3.40535 14.4013 3.53924 14.3578C3.69146 14.3084 3.82347 14.1763 4.08748 13.9123Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>`},
+      dots:    {vb:"0 0 16 16", svg:`<path d="M10.3333 4.00008C10.7015 4.00008 11 3.7016 11 3.33341C11 2.96522 10.7015 2.66675 10.3333 2.66675C9.96514 2.66675 9.66667 2.96522 9.66667 3.33341C9.66667 3.7016 9.96514 4.00008 10.3333 4.00008Z" fill="currentColor"/><path d="M10.3333 8.66675C10.7015 8.66675 11 8.36827 11 8.00008C11 7.63189 10.7015 7.33342 10.3333 7.33342C9.96514 7.33342 9.66667 7.63189 9.66667 8.00008C9.66667 8.36827 9.96514 8.66675 10.3333 8.66675Z" fill="currentColor"/><path d="M10.3333 13.3334C10.7015 13.3334 11 13.0349 11 12.6667C11 12.2986 10.7015 12.0001 10.3333 12.0001C9.96514 12.0001 9.66667 12.2986 9.66667 12.6667C9.66667 13.0349 9.96514 13.3334 10.3333 13.3334Z" fill="currentColor"/><path d="M5.66667 4.00008C6.03486 4.00008 6.33333 3.7016 6.33333 3.33341C6.33333 2.96522 6.03486 2.66675 5.66667 2.66675C5.29848 2.66675 5 2.96522 5 3.33341C5 3.7016 5.29848 4.00008 5.66667 4.00008Z" fill="currentColor"/><path d="M5.66667 8.66675C6.03486 8.66675 6.33333 8.36827 6.33333 8.00008C6.33333 7.63189 6.03486 7.33342 5.66667 7.33342C5.29848 7.33342 5 7.63189 5 8.00008C5 8.36827 5.29848 8.66675 5.66667 8.66675Z" fill="currentColor"/><path d="M5.66667 13.3334C6.03486 13.3334 6.33333 13.0349 6.33333 12.6667C6.33333 12.2986 6.03486 12.0001 5.66667 12.0001C5.29848 12.0001 5 12.2986 5 12.6667C5 13.0349 5.29848 13.3334 5.66667 13.3334Z" fill="currentColor"/>`},
+      help:    {vb:"0 0 24 24", svg:`<path d="M9.75 9.25C9.75 8.42157 10.4216 7.75 11.25 7.75H12.4587C13.448 7.75 14.25 8.552 14.25 9.54132C14.25 10.1402 13.9507 10.6996 13.4523 11.0318L12.8906 11.4063C12.3342 11.7772 12 12.4017 12 13.0704V13.25M12 16V15.99M21.25 12C21.25 17.1086 17.1086 21.25 12 21.25C6.89137 21.25 2.75 17.1086 2.75 12C2.75 6.89137 6.89137 2.75 12 2.75C17.1086 2.75 21.25 6.89137 21.25 12ZM12.25 16C12.25 16.1381 12.1381 16.25 12 16.25C11.8619 16.25 11.75 16.1381 11.75 16C11.75 15.8619 11.8619 15.75 12 15.75C12.1381 15.75 12.25 15.8619 12.25 16Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`},
+      lock:    {vb:"0 0 16 16", svg:`<path d="M4.5 7V5C4.5 3.067 6.067 1.5 8 1.5C9.933 1.5 11.5 3.067 11.5 5V7M4.3 14.5H11.7C12.2601 14.5 12.5401 14.5 12.754 14.391C12.9422 14.2951 13.0951 14.1422 13.191 13.954C13.3 13.7401 13.3 13.4601 13.3 12.9V8.6C13.3 8.03995 13.3 7.75992 13.191 7.54601C13.0951 7.35785 12.9422 7.20487 12.754 7.10899C12.5401 7 12.2601 7 11.7 7H4.3C3.73995 7 3.45992 7 3.24601 7.10899C3.05785 7.20487 2.90487 7.35785 2.80899 7.54601C2.7 7.75992 2.7 8.03995 2.7 8.6V12.9C2.7 13.4601 2.7 13.7401 2.80899 13.954C2.90487 14.1422 3.05785 14.2951 3.24601 14.391C3.45992 14.5 3.73995 14.5 4.3 14.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`},
+      scan:    {vb:"0 0 13 15", svg:`<path fill-rule="evenodd" clip-rule="evenodd" d="M6.76556 1.2204C6.60067 1.12222 6.39933 1.12222 6.23444 1.2204L4.94588 1.98765C4.68515 2.1429 4.35488 2.04501 4.20822 1.76901C4.06156 1.49301 4.15403 1.14341 4.41477 0.988161L5.70333 0.220909C6.198 -0.0736362 6.802 -0.0736362 7.29667 0.220909L8.58523 0.988161C8.84597 1.14341 8.93844 1.49301 8.79178 1.76901C8.64512 2.04501 8.31485 2.1429 8.05412 1.98765L6.76556 1.2204ZM2.94914 2.51871C3.0958 2.79471 3.00333 3.14431 2.74259 3.29956L1.35944 4.12314C1.18888 4.2247 1.08333 4.41574 1.08333 4.62289L1.08333 6.16211C1.08333 6.47878 0.840821 6.73549 0.541667 6.73549C0.242513 6.73549 4.30478e-07 6.47878 4.73526e-07 6.16211L6.02669e-07 4.62289C6.45717e-07 4.00144 0.316652 3.42832 0.828326 3.12365L2.21148 2.30007C2.47221 2.14482 2.80248 2.24271 2.94914 2.51871ZM10.0509 2.51871C10.1975 2.24271 10.5278 2.14482 10.7885 2.30007L12.1717 3.12365C12.6833 3.42832 13 4.00144 13 4.62288V6.16211C13 6.47878 12.7575 6.73549 12.4583 6.73549C12.1592 6.73549 11.9167 6.47878 11.9167 6.16211V4.62288C11.9167 4.41574 11.8111 4.2247 11.6406 4.12314L10.2574 3.29956C9.99667 3.14431 9.9042 2.79471 10.0509 2.51871ZM12.4583 8.26451C12.7575 8.26451 13 8.52122 13 8.83789V10.3771C13 10.9986 12.6833 11.5717 12.1717 11.8763L10.7885 12.6999C10.5278 12.8552 10.1975 12.7573 10.0509 12.4813C9.9042 12.2053 9.99668 11.8557 10.2574 11.7004L11.6406 10.8769C11.8111 10.7753 11.9167 10.5843 11.9167 10.3771V8.83789C11.9167 8.52122 12.1592 8.26451 12.4583 8.26451ZM0.541667 8.26451C0.840821 8.26451 1.08333 8.52122 1.08333 8.83789L1.08333 10.3771C1.08333 10.5843 1.18888 10.7753 1.35944 10.8769L2.74259 11.7004C3.00332 11.8557 3.0958 12.2053 2.94913 12.4813C2.80247 12.7573 2.47221 12.8552 2.21147 12.6999L0.828326 11.8763C0.31665 11.5717 -4.30478e-08 10.9986 0 10.3771L1.29143e-07 8.83789C1.72191e-07 8.52122 0.242513 8.26451 0.541667 8.26451ZM4.20821 13.231C4.35488 12.955 4.68514 12.8571 4.94588 13.0123L6.23444 13.7796C6.39933 13.8778 6.60067 13.8778 6.76556 13.7796L8.05412 13.0123C8.31486 12.8571 8.64512 12.955 8.79179 13.231C8.93845 13.507 8.84598 13.8566 8.58524 14.0118L7.29667 14.7791C6.802 15.0736 6.198 15.0736 5.70333 14.7791L4.41476 14.0118C4.15402 13.8566 4.06155 13.507 4.20821 13.231Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M4.62357 6.35324C4.77315 6.07899 5.10443 5.98503 5.3635 6.14337L6.49997 6.83792L7.63643 6.14337C7.8955 5.98503 8.22678 6.07899 8.37636 6.35324C8.52594 6.62748 8.43717 6.97816 8.1781 7.13649L7.04164 7.83104V9.22014C7.04164 9.53681 6.79912 9.79353 6.49997 9.79353C6.20082 9.79353 5.9583 9.53681 5.9583 9.22014V7.83104L4.82184 7.13649C4.56276 6.97816 4.474 6.62748 4.62357 6.35324Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M6.49998 0.213281C6.79913 0.213281 7.04164 0.469993 7.04164 0.786663V3.10408C7.04164 3.42075 6.79913 3.67746 6.49998 3.67746C6.20082 3.67746 5.95831 3.42075 5.95831 3.10408V0.786663C5.95831 0.469993 6.20082 0.213281 6.49998 0.213281ZM0.349927 3.83504C0.499504 3.56079 0.830782 3.46683 1.08986 3.62516L3.02114 4.80548C3.28022 4.96381 3.36898 5.31449 3.21941 5.58873C3.06983 5.86297 2.73855 5.95694 2.47948 5.7986L0.548191 4.61829C0.289116 4.45995 0.20035 4.10928 0.349927 3.83504ZM12.65 3.83504C12.7996 4.10928 12.7108 4.45995 12.4518 4.61829L10.5205 5.7986C10.2614 5.95694 9.93012 5.86297 9.78055 5.58873C9.63097 5.31449 9.71974 4.96381 9.97881 4.80548L11.9101 3.62516C12.1692 3.46683 12.5004 3.56079 12.65 3.83504ZM3.24873 9.39335C3.3983 9.6676 3.30954 10.0183 3.05046 10.1766L1.08986 11.3748C0.830782 11.5332 0.499504 11.4392 0.349927 11.165C0.20035 10.8907 0.289115 10.54 0.548191 10.3817L2.50879 9.18348C2.76787 9.02515 3.09915 9.11911 3.24873 9.39335ZM9.75123 9.39335C9.90081 9.11911 10.2321 9.02515 10.4912 9.18348L12.4518 10.3817C12.7108 10.54 12.7996 10.8907 12.65 11.165C12.5004 11.4392 12.1692 11.5332 11.9101 11.3748L9.94949 10.1766C9.69042 10.0183 9.60165 9.6676 9.75123 9.39335ZM6.49998 11.2867C6.79913 11.2867 7.04164 11.5434 7.04164 11.8601V14.2133C7.04164 14.53 6.79913 14.7867 6.49998 14.7867C6.20082 14.7867 5.95831 14.53 5.95831 14.2133V11.8601C5.95831 11.5434 6.20082 11.2867 6.49998 11.2867Z" fill="currentColor"/>`}
+    };
+    ICONS.minimize = ICONS.chevron;
+    ICONS.close = {vb:"0 0 16 16", svg:`<path d="M4 4L12 12M12 4L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`};
+    function Ic({name, size=16}){
+      const ic = ICONS[name];
+      if(!ic) return null;
+      // preserve the icon's intrinsic aspect ratio (e.g. play is 10×12, not square)
+      const vb = ic.vb.split(/[ ,]+/).map(Number);
+      const vw = vb[2] || size, vh = vb[3] || size, m = Math.max(vw, vh);
+      const w = +(size * vw / m).toFixed(2), ht = +(size * vh / m).toFixed(2);
+      return h("svg",{width:w,height:ht,viewBox:ic.vb,fill:"none",xmlns:"http://www.w3.org/2000/svg",
+        style:{display:"block"},dangerouslySetInnerHTML:{__html:ic.svg}});
+    }
+
+    function usePreviewTime(){
+      const{preview}=useContext(TimelineCtx);
+      const[ms,setMs]=useState(0);
+      useEffect(()=>preview.onProgress(setMs),[preview]);
+      return ms;
+    }
+
+    // portaled, origin-aware dropdown surface (transitions.dev menu-dropdown)
+    function Dropdown({open,onClose,triggerRef,width,align,children}){
+      const ref=useRef(null);
+      const[render,setRender]=useState(open);
+      const[shown,setShown]=useState(false);   // .is-open
+      const[closing,setClosing]=useState(false); // .is-closing
+      const[pos,setPos]=useState(null);
+      // mount on open; keep mounted through the close animation, then unmount
+      useEffect(()=>{
+        if(open){ setRender(true); setClosing(false); }
+        else if(render){
+          setShown(false); setClosing(true);
+          const t=setTimeout(()=>{ setRender(false); setClosing(false); },CLOSE_MS);
+          return()=>clearTimeout(t);
+        }
+      },[open,render]);
+      // measure trigger + viewport to position the surface (origin-aware)
+      useLayoutEffect(()=>{
+        if(!render||!triggerRef.current)return;
+        const r=triggerRef.current.getBoundingClientRect();
+        const PAD=8, GAP=6, MIN_H=140, PREF_H=280;
+        const vw=window.innerWidth;
+        const vh=window.innerHeight;
+        const w=Math.min(width||r.width,Math.max(120,vw-(PAD*2)));
+        const below=Math.max(0,vh-r.bottom-GAP-PAD);
+        const above=Math.max(0,r.top-GAP-PAD);
+        const openUp=(below<PREF_H)&&above>below;
+        const maxH=Math.max(MIN_H,Math.floor(openUp?above:below));
+        const right=align==="right";
+        const style={position:"fixed",width:w,maxHeight:maxH,overflowY:"auto",overscrollBehavior:"contain",zIndex:100000};
+        const rawLeft=right?(r.right-w):r.left;
+        style.left=Math.min(Math.max(PAD,rawLeft),Math.max(PAD,vw-PAD-w));
+        if(openUp)style.bottom=(vh-r.top)+6; else style.top=r.bottom+6;
+        setPos({style,origin:(openUp?"bottom":"top")+"-"+(right?"right":"left")});
+      },[render,open,align,width,triggerRef]);
+      // play the enter transition: once the surface is mounted + positioned in
+      // its closed state, force a reflow to commit that "from" style, then add
+      // .is-open. Forcing the reflow (instead of relying on rAF, which throttles)
+      // guarantees the transitions.dev scale/opacity transition runs.
+      useLayoutEffect(()=>{
+        if(render&&pos&&open&&!shown&&!closing&&ref.current){
+          void ref.current.offsetWidth;
+          setShown(true);
+        }
+      },[render,pos,open,shown,closing]);
+      useEffect(()=>{
+        if(!open)return;
+        const handler=e=>{
+          if(ref.current&&ref.current.contains(e.target))return;
+          if(triggerRef.current&&triggerRef.current.contains(e.target))return;
+          onClose();
+        };
+        document.addEventListener("mousedown",handler);
+        return()=>document.removeEventListener("mousedown",handler);
+      },[open,onClose,triggerRef]);
+      if(!render)return null;
+      // portal into the React root container (not document.body) so React's
+      // event delegation still receives clicks on menu items.
+      const target=document.getElementById("root")||document.body;
+      // Before pos is measured, mount off-screen at opacity 0 (closed state) so
+      // the element paints its pre-open frame and the open transition can run.
+      const style=pos?pos.style:{position:"fixed",left:-9999,top:0,width:(width||200),zIndex:100000};
+      const origin=pos?pos.origin:"top-left";
+      const cls=closing?"is-closing":shown?"is-open":"";
+      return createPortal(
+        h("div",{ref,className:cx("t-dropdown","tl-menu",cls),"data-origin":origin,style},children),
+        target);
+    }
+
+    function MenuItem({active,disabled,onClick,right,children}){
+      return h("div",{className:cx("tl-menu-item",disabled&&"disabled"),onClick:disabled?undefined:onClick},
+        h("span",{className:"tl-menu-item-label"},children),
+        right);
+    }
+
+    // ── refine relay client ──
+    // Talks to the local relay (server/relay.mjs). The browser posts a job and
+    // polls; the relay answers each job with one agent run (one-shot).
+    const RELAY_URL = (window.REFINE_RELAY_URL) || "http://localhost:7331";
+    async function relayCreateJob(request){
+      const r = await fetch(RELAY_URL+"/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({request})});
+      if(!r.ok) throw new Error("relay POST /jobs failed ("+r.status+")");
+      return r.json(); // { id, status }
+    }
+    async function relayGetJob(id){
+      const r = await fetch(RELAY_URL+"/jobs/"+id);
+      if(!r.ok) throw new Error("relay GET /jobs/:id failed ("+r.status+")");
+      return r.json();
+    }
+    async function relayHealth(){
+      const r = await fetch(RELAY_URL+"/health");
+      if(!r.ok) throw new Error("relay /health failed ("+r.status+")");
+      return r.json(); // { ok, auto, llmAvailable, jobs }
+    }
+
+    const REFINE_MODES=[
+      {key:"llm",label:"Agent",desc:"Suggested edits from the agent using the Transitions.dev skill."},
+      {key:"deterministic",label:"Deterministic",desc:"Suggests edits only mathematically, with no credit usage."},
+    ];
+    const REFINE_TYPES=[
+      {key:"small",label:"Small refinements",desc:"The agent will scan the transition and suggest small refinements by adjusting motion tokens using the Transitions.dev skill."},
+      {key:"replace",label:"Replace transition",desc:"The agent will scan the transitions and suggest replacements from the Transitions.dev library and skill."},
+    ];
+    const REFINE_STATUS=["Scanning the selected transition","Reading the Transitions.dev skill","Suggesting edits"];
+    // Loading status copy: transitions.dev shimmer text (15) with a text states
+    // swap (04) between messages — old line exits up + blurs, new enters from below.
+    // JS owns textContent/data-text so React never clobbers the staged swap.
+    function ShimmerSwapText({text}){
+      const ref=useRef(null);
+      const cur=useRef(undefined);
+      const setEl=useCallback((node)=>{
+        ref.current=node;
+        if(node&&cur.current===undefined){node.textContent=text;node.setAttribute("data-text",text);cur.current=text;}
+      },[]);
+      useEffect(()=>{
+        const el=ref.current;if(!el)return;
+        if(cur.current===text)return;
+        const dur=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--text-swap-dur"))||150;
+        el.classList.add("is-exit");
+        const t=setTimeout(()=>{
+          el.textContent=text;el.setAttribute("data-text",text);
+          el.classList.remove("is-exit");el.classList.add("is-enter-start");
+          void el.offsetHeight; // reflow so the new line animates back to rest
+          el.classList.remove("is-enter-start");
+          cur.current=text;
+        },dur);
+        return()=>clearTimeout(t);
+      },[text]);
+      return h("span",{ref:setEl,className:"tl-refine-status-text t-shimmer t-text-swap"});
+    }
+    // Results entrance — transitions.dev texts reveal (18): the summary and each
+    // suggestion card are stagger lines that rise + unblur in sequence on mount.
+    function RefineResults({summary,suggestions,appliedIds,onApply}){
+      const ref=useRef(null);
+      useEffect(()=>{
+        const el=ref.current;if(!el)return;
+        el.classList.remove("is-shown");
+        void el.offsetHeight; // reflow from the start state before playing
+        el.classList.add("is-shown");
+      },[]);
+      const delay=(i)=>({transitionDelay:"calc(var(--stagger-stagger) * "+i+")"});
+      let i=0;
+      return h("div",{ref,className:"tl-refine-results t-stagger"},
+        summary&&h("div",{className:"tl-refine-summary t-stagger-line",style:delay(i++)},summary),
+        suggestions.map(s=>{
+          const applied=!!appliedIds[s.id];
+          return h("div",{className:"tl-sug t-stagger-line",key:s.id,style:delay(i++)},
+            h("div",{className:"tl-sug-top"},
+              h("span",{className:"tl-sug-kind"},s.kind||"tweak"),
+              s.property&&h("span",{className:"tl-sug-prop"},s.property)),
+            h("div",{className:"tl-sug-title"},s.title),
+            h("div",{className:"tl-sug-delta"},
+              s.from&&h("span",{className:"tl-sug-from"},s.from),
+              s.from&&h("span",{className:"tl-sug-arrow"},"\u2192"),
+              h("span",{className:"tl-sug-to"},s.to)),
+            s.reason&&h("div",{className:"tl-sug-reason"},s.reason),
+            applied
+              ? h("button",{className:"tl-sug-apply is-applied",disabled:true},h(Ic,{name:"check",size:13}),"Applied")
+              : h("button",{className:"tl-sug-apply",onClick:()=>onApply(s)},"Apply"));
+        }));
+    }
+    function RefinePanel({open,onClose,phase,label,refineType,onType,suggestions,summary,error,appliedIds,onApply,onApplyAll,mode,onMode,llmAvailable,cliInstalled,onStart}){
+      // mount-on-open; keep mounted through the panel-reveal slide-out, then unmount
+      const[render,setRender]=useState(open);
+      const[panelOpen,setPanelOpen]=useState(false);
+      const[slidePhase,setSlidePhase]=useState("opening");
+      const[modeOpen,setModeOpen]=useState(false);
+      const[statusIx,setStatusIx]=useState(0);
+      const modeRef=useRef(null);
+      useEffect(()=>{
+        let raf, to;
+        if(open){
+          setRender(true);
+          setSlidePhase("opening");
+          raf=requestAnimationFrame(()=>{raf=requestAnimationFrame(()=>setPanelOpen(true));});
+          return()=>{if(raf)cancelAnimationFrame(raf);};
+        }
+        if(render){
+          setSlidePhase("closing");
+          setPanelOpen(false);
+          const closeMs=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--refine-close-dur"))||350;
+          to=setTimeout(()=>setRender(false),closeMs+80);
+          return()=>clearTimeout(to);
+        }
+      },[open,render]);
+      // close on Escape — dismiss the mode dropdown first if it's open
+      useEffect(()=>{
+        if(!open)return;
+        const onKey=e=>{if(e.key!=="Escape")return;if(modeOpen){setModeOpen(false);return;}onClose();};
+        window.addEventListener("keydown",onKey);
+        return()=>window.removeEventListener("keydown",onKey);
+      },[open,onClose,modeOpen]);
+      // cycle the in-progress status copy while scanning (matches the design's
+      // "Scanning… → Reading the Transitions.dev skill → Suggesting edits").
+      useEffect(()=>{
+        if(phase!=="scanning"){setStatusIx(0);return;}
+        const id=setInterval(()=>setStatusIx(i=>(i+1)%REFINE_STATUS.length),2800);
+        return()=>clearInterval(id);
+      },[phase]);
+      if(!render)return null;
+
+      const pending = suggestions.filter(s=>!appliedIds[s.id]);
+      const agentMode = mode==="llm";
+      // null (unknown / still probing) is treated as ready so the panel doesn't
+      // flash the "unavailable" copy before /health resolves.
+      const agentReady = !agentMode || llmAvailable!==false;
+      const typeDesc = (REFINE_TYPES.find(t=>t.key===refineType)||REFINE_TYPES[0]).desc;
+      const modeLabel = (REFINE_MODES.find(m=>m.key===mode)||REFINE_MODES[0]).label;
+      // One persistent control for the whole foot: in idle/done/error it's the
+      // pill button; while scanning it carries `.is-scanning` and the same DOM
+      // node morphs (card resize) into the loading rectangle with the border-beam.
+      const scanning = phase==="scanning";
+      const startBtn=(o)=>{o=o||{};
+        // Both faces stay mounted and stacked; the morph cross-blurs (icon swap)
+        // between the label and the icon+status instead of swapping the subtree.
+        return h("button",{className:cx("tl-scan-morph","t-resize",scanning&&"is-scanning"),
+          disabled:(!!o.disabled)||scanning,"aria-busy":scanning?"true":undefined,
+          onClick:(o.disabled||scanning)?undefined:onStart},
+          scanning&&h(BorderBeam,{size:"md",colorVariant:"ocean",theme:"light",borderRadius:10,duration:2.6,saturation:2,brightness:1.6,className:"tl-scan-beam"},
+            h("span",{className:"tl-scan-beam-fill"})),
+          h("span",{className:"tl-scan-content"},
+            h("span",{className:"tl-scan-face tl-scan-face-label","aria-hidden":scanning?"true":undefined},
+              h("span",{className:"tl-scan-label"},o.label||"Start scanning")),
+            h("span",{className:"tl-scan-face tl-scan-face-status","aria-hidden":scanning?undefined:"true"},
+              h("span",{className:"tl-scan-ic","aria-hidden":"true"},h(Ic,{name:"scan",size:15})),
+              h(ShimmerSwapText,{text:REFINE_STATUS[statusIx]}))));
+      };
+
+      let body, foot;
+      if(phase==="scanning"){
+        body = h("div",{className:"tl-refine-center"});
+        foot = startBtn();
+      } else if(phase==="error"){
+        body = h("div",{className:"tl-refine-center"},
+          h("div",{className:"tl-refine-unavail-title"},"Something went wrong."),
+          h("div",{className:"tl-refine-unavail-text"},error||"The agent reported an error."));
+        foot = startBtn({label:"Try again"});
+      } else if(phase==="done"){
+        if(suggestions.length===0){
+          const emptyMsg = refineType==="replace"
+            ? "I didn't find any transition that would be a good fit as a replacement."
+            : "Already aligned to the transitions.dev motion tokens. Nothing to refine.";
+          body = h("div",{className:"tl-refine-center"},
+            h("p",{className:"tl-refine-idle-text"},emptyMsg));
+          foot = startBtn({label:"Scan again"});
+        } else {
+          body = h(RefineResults,{summary,suggestions,appliedIds,onApply});
+          foot = pending.length>1
+            ? h("button",{className:"pc-btn primary",style:{flex:1},onClick:onApplyAll},"Apply all ("+pending.length+")")
+            : startBtn({label:"Scan again"});
+        }
+      } else { // idle
+        if(!agentReady){
+          const cliMissing = cliInstalled===false;
+          body = h("div",{className:"tl-refine-center"},
+            h("div",{className:"tl-refine-unavail-title"},"Agent unavailable."),
+            cliMissing
+              ? h("p",{className:"tl-refine-unavail-text"},"Install Cursor CLI by ",h("code",{className:"tl-code"},"/refine live")," command in your agent to enable live functionality.")
+              : h("p",{className:"tl-refine-unavail-text"},"Run the ",h("code",{className:"tl-code"},"/refine live")," command in your agent to enable live functionality."));
+          foot = startBtn({disabled:true});
+        } else {
+          body = h("div",{className:"tl-refine-center"},
+            h("p",{className:"tl-refine-idle-text"},typeDesc));
+          foot = startBtn({});
+        }
+      }
+
+      return h("div",{className:"tl-refine-panel","data-open":panelOpen?"true":"false","data-phase":slidePhase,
+        role:"dialog","aria-label":"Refine transition"},
+        h("div",{className:"tl-refine-inner"},
+          h("div",{className:"tl-refine-head"},
+            h("div",{className:"tl-refine-titles"},
+              h("h3",null,"Refine"),
+              h("p",null,label?("Tuning "+label):"Transitions review")),
+            h("div",{className:"tl-refine-actions"},
+              h("button",{ref:modeRef,className:cx("tl-refine-mode",modeOpen&&"is-open"),
+                "aria-haspopup":"menu","aria-expanded":modeOpen?"true":"false",onClick:()=>setModeOpen(v=>!v)},
+                h("span",null,modeLabel),
+                h(Ic,{name:"chevron",size:16})),
+              h("button",{className:"tl-refine-close","aria-label":"Close refine panel",onClick:onClose},
+                h(Ic,{name:"close",size:16})))),
+          h(Dropdown,{open:modeOpen,onClose:()=>setModeOpen(false),triggerRef:modeRef,width:276,align:"right"},
+            REFINE_MODES.map(m=>h("button",{key:m.key,className:"tl-mode-row",
+              onClick:()=>{if(m.key!==mode)onMode(m.key);setModeOpen(false);}},
+              h("div",{className:"tl-mode-row-main"},
+                h("div",{className:"tl-mode-row-title"},m.label),
+                h("div",{className:"tl-mode-row-desc"},m.desc)),
+              (mode===m.key)&&h("span",{className:"tl-mode-row-check"},h(Ic,{name:"check",size:16}))))),
+          h("div",{className:"tl-refine-tabs",role:"tablist","aria-label":"Refinement type"},
+            REFINE_TYPES.map(t=>h("button",{key:t.key,className:"tl-refine-tab",role:"tab",
+              "aria-selected":refineType===t.key?"true":"false",
+              onClick:()=>{if(t.key!==refineType)onType(t.key);}},t.label))),
+          h("div",{className:"tl-refine-body"},body),
+          h("div",{className:"tl-refine-foot"},foot)));
+    }
+
+    function Header({entries,active,onSelect,onReset,onCopy,copied,loop,setLoop,snap,setSnap,onMinimize,onRefine,refineActive}){
+      const[pick,setPick]=useState(false);
+      const[setg,setSetg]=useState(false);
+      const pickRef=useRef(null), gearRef=useRef(null);
+      return h("div",{className:"tl-header"},
+        h("span",{className:"tl-header-label"},"Selected"),
+        h("button",{ref:pickRef,className:cx("tl-ghost-btn",pick&&"is-active"),disabled:!active,onClick:()=>setPick(v=>!v)},
+          active?h(React.Fragment,null,h("span",null,active.label),h("span",{className:"tl-dim"}," "+active.durationMs+"ms"))
+                :h("span",{className:"tl-dim"},"None"),
+          h("span",{className:"tl-ghost-chev"},h(Ic,{name:"chevron"}))),
+        h(Dropdown,{open:pick,onClose:()=>setPick(false),triggerRef:pickRef,width:Math.max(240,(pickRef.current&&pickRef.current.offsetWidth)||240),align:"left"},
+          entries.length===0
+            ? h("div",{className:"tl-menu-empty"},"No transitions found")
+            : entries.map(e=>h(MenuItem,{key:e.id,active:active&&e.id===active.id,onClick:()=>{onSelect(e.id);setPick(false);},
+                right:active&&e.id===active.id&&h("span",{className:"tl-menu-check"},h(Ic,{name:"check"}))},
+                h("span",null,e.label,h("span",{className:"tl-menu-dim"}," "+e.durationMs+"ms")))) ),
+        h("span",{className:"tl-header-count"},entries.length+" transition"+(entries.length===1?"":"s")+" found"),
+        h("button",{ref:gearRef,className:cx("tl-icon-btn",setg&&"is-active"),title:"Settings",onClick:()=>setSetg(v=>!v)},h(Ic,{name:"gear"})),
+        h(Dropdown,{open:setg,onClose:()=>setSetg(false),triggerRef:gearRef,width:210,align:"right"},
+          h(MenuItem,{onClick:()=>setLoop(v=>!v),right:loop&&h("span",{className:"tl-menu-check"},h(Ic,{name:"check"}))},"Loop playback"),
+          h(MenuItem,{onClick:()=>setSnap(v=>!v),right:snap&&h("span",{className:"tl-menu-check"},h(Ic,{name:"check"}))},"Snap to grid")),
+        h("span",{className:"t-tt-wrap"},
+          h("button",{className:"tl-sec-btn t-tt-trigger",disabled:!active,onClick:onReset},"Reset"),
+          h("span",{className:"t-tt tl-tt-below",role:"tooltip"},"Reset values")),
+        h("span",{className:"t-tt-wrap"},
+          h("button",{className:"tl-icon-btn t-tt-trigger",disabled:!active,"aria-label":"Copy values",onClick:onCopy},
+            h("span",{className:"t-icon-swap","data-state":copied?"b":"a"},
+              h("span",{className:"t-icon","data-icon":"a"},h(Ic,{name:"copy"})),
+              h("span",{className:"t-icon","data-icon":"b"},h(Ic,{name:"check"})))),
+          h("span",{className:"t-tt tl-tt-below",role:"tooltip"},copied?"Copied":"Copy values")),
+        h("button",{className:cx("tl-refine-btn",refineActive&&"is-active"),disabled:!active,onClick:onRefine},
+            h(Ic,{name:"wand"}),
+            h("span",{className:"tl-refine-sparks","aria-hidden":"true"},
+              h("i",{style:{"--ox":"-1px","--oy":"-3px","--sx":"0px","--sy":"-11px","--sd":"900ms","--sdelay":"0ms"}}),
+              h("i",{style:{"--ox":"2px","--oy":"-2px","--sx":"9px","--sy":"-9px","--sd":"1000ms","--sdelay":"120ms"}}),
+              h("i",{style:{"--ox":"2px","--oy":"5px","--sx":"9px","--sy":"9px","--sd":"950ms","--sdelay":"240ms"}}),
+              h("i",{style:{"--ox":"-5px","--oy":"-2px","--sx":"-9px","--sy":"-9px","--sd":"1000ms","--sdelay":"360ms"}}),
+              h("i",{style:{"--ox":"3px","--oy":"1px","--sx":"12px","--sy":"1px","--sd":"920ms","--sdelay":"480ms"}}),
+              h("i",{style:{"--ox":"-1px","--oy":"-3px","--sx":"0px","--sy":"-11px","--sd":"950ms","--sdelay":"520ms"}}),
+              h("i",{style:{"--ox":"2px","--oy":"-2px","--sx":"9px","--sy":"-9px","--sd":"900ms","--sdelay":"650ms"}}),
+              h("i",{style:{"--ox":"2px","--oy":"5px","--sx":"9px","--sy":"9px","--sd":"1000ms","--sdelay":"760ms"}}),
+              h("i",{style:{"--ox":"-5px","--oy":"-2px","--sx":"-9px","--sy":"-9px","--sd":"930ms","--sdelay":"180ms"}}),
+              h("i",{style:{"--ox":"3px","--oy":"1px","--sx":"12px","--sy":"1px","--sd":"980ms","--sdelay":"300ms"}})),
+            h("span",null,"Refine")),
+        h("button",{className:"tl-icon-btn ghost",title:"Minimize",onClick:onMinimize},h(Ic,{name:"minimize"})),
+      );
+    }
+
+    function PropTrack({property, delayMs, durationMs, selected, dragging, onSelect, onReorder, onDelayChange, onDurationChange, snap, scaleMs, lockDuration}){
+      const trackRef=useRef(null);
+      const grid = snap ? 25 : 1;
+      const pxToMs=useCallback(px=>{if(!trackRef.current)return 0;const w=trackRef.current.getBoundingClientRect().width;return Math.round((px/w)*scaleMs/grid)*grid;},[grid,scaleMs]);
+
+      const startDrag=useCallback((mode,e)=>{
+        e.preventDefault(); e.stopPropagation();
+        onSelect();
+        // a spring controls its own duration, so its bar can be moved (delay) but not resized
+        if(lockDuration && mode!=="move") return;
+        const startX=e.clientX; const sd=delayMs; const sdur=durationMs;
+        const onMove=e2=>{
+          const dx=e2.clientX-startX; const dMs=pxToMs(dx);
+          if(mode==="move"){
+            onDelayChange(Math.max(0,Math.min(sd+dMs,scaleMs-sdur)));
+          } else if(mode==="left"){
+            const rawDel=sd+dMs; const clampedDel=Math.max(0,Math.min(rawDel,sd+sdur-grid));
+            onDelayChange(clampedDel); onDurationChange(sdur-(clampedDel-sd));
+          } else {
+            onDurationChange(Math.max(grid,Math.min(sdur+dMs,scaleMs-sd)));
+          }
+        };
+        const onUp=()=>{window.removeEventListener("mousemove",onMove);window.removeEventListener("mouseup",onUp);};
+        window.addEventListener("mousemove",onMove);window.addEventListener("mouseup",onUp);
+      },[delayMs,durationMs,pxToMs,grid,scaleMs,onSelect,onDelayChange,onDurationChange,lockDuration]);
+
+      const delPct=(delayMs/scaleMs)*100; const durPct=(durationMs/scaleMs)*100;
+      return h("div",{className:cx("tl-prop-row",selected&&"selected",dragging&&"reordering",lockDuration&&"is-spring"),onClick:onSelect},
+        h("div",{className:"tl-prop-head"},
+          h("span",{className:"tl-prop-grip",title:"Drag to reorder",onMouseDown:onReorder},h(Ic,{name:"dots"})),
+          h("span",{className:"tl-prop-label"},property)),
+        h("div",{className:"tl-prop-track",ref:trackRef},
+          h("div",{className:"tl-bar",style:{left:delPct+"%",width:durPct+"%"},onMouseDown:e=>startDrag("move",e),
+            title:lockDuration?"Spring duration is derived \u2014 drag to move, resize is locked":undefined},
+            h("span",{className:"tl-bar-handle left"}),
+            h("span",{className:"tl-bar-handle right"}),
+            !lockDuration&&h("div",{className:"tl-bar-grip left",onMouseDown:e=>startDrag("left",e)}),
+            !lockDuration&&h("div",{className:"tl-bar-grip right",onMouseDown:e=>startDrag("right",e)}),
+          ),
+        ),
+      );
+    }
+
+    function ValueField({label, value, min, max, step, tokens, onChange, snap, readOnly, readOnlyHint}){
+      const fieldRef = useRef(null);
+      const trackRef = useRef(null);
+      const inputRef = useRef(null);
+      const[editing,setEditing]=useState(false);
+      const[draft,setDraft]=useState("");
+      const[dragging,setDragging]=useState(false);
+      const[menu,setMenu]=useState(false);
+      const pct = Math.min(Math.max((value - min) / (max - min), 0), 1) * 100;
+      const grid = snap ? step : Math.max(1, Math.round(step/5));
+      const selectAll = useCallback(e=>{
+        const el = e && e.target ? e.target : inputRef.current;
+        if(!el) return;
+        // defer one tick so selection wins over browser caret placement
+        requestAnimationFrame(()=>el.select());
+      },[]);
+
+      const setFromX = useCallback(clientX => {
+        if(!trackRef.current) return;
+        const rect = trackRef.current.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min((clientX - rect.left) / rect.width, 1));
+        const raw = min + ratio * (max - min);
+        const snapped = Math.round(raw / grid) * grid;
+        onChange(Math.max(min, Math.min(max, snapped)));
+      },[min,max,grid,onChange]);
+
+      const startDrag = useCallback(e=>{
+        if(editing || readOnly) return;
+        e.preventDefault();
+        setDragging(true);
+        setFromX(e.clientX);
+        const onMove = e2 => setFromX(e2.clientX);
+        const onUp = () => { setDragging(false); window.removeEventListener("mousemove",onMove); window.removeEventListener("mouseup",onUp); };
+        window.addEventListener("mousemove",onMove);
+        window.addEventListener("mouseup",onUp);
+      },[setFromX,editing]);
+
+      const beginEdit = useCallback(e=>{ e.stopPropagation(); if(readOnly) return; setDraft(String(value)); setEditing(true); },[value,readOnly]);
+      const commit = useCallback(()=>{ const n=parseFloat(draft); if(!isNaN(n)) onChange(Math.max(min,Math.min(max,Math.round(n)))); setEditing(false); },[draft,min,max,onChange]);
+
+      const chevRef=useRef(null);
+      const wrapRef=useRef(null);
+      return h("div",{ref:wrapRef,className:cx("tl-field-wrap",readOnly&&"is-locked")},
+        h("div",{ref:fieldRef,className:cx("tl-field",dragging&&"is-dragging",editing&&"is-editing",readOnly&&"is-readonly")},
+          h("div",{className:"tl-field-fill",style:{width:pct+"%"}},
+            !readOnly&&h("div",{className:"tl-field-thumb"}),
+          ),
+          h("div",{ref:trackRef,className:"tl-field-track",onMouseDown:startDrag}),
+          h("span",{className:"tl-field-label"},label),
+          editing
+            ? h("input",{ref:inputRef,className:"tl-field-input",autoFocus:true,value:draft,
+                onChange:e=>setDraft(e.target.value),onBlur:commit,
+                onFocus:selectAll,
+                onKeyDown:e=>{if(e.key==="Enter")commit();if(e.key==="Escape")setEditing(false);}})
+            : h("span",{className:cx("tl-field-value",readOnly&&"is-readonly"),style:readOnly?{right:"30px"}:null,
+                onMouseDown:e=>e.stopPropagation(),onClick:beginEdit},value),
+          readOnly&&h("span",{className:"tl-field-lock"},h(Ic,{name:"lock",size:13})),
+        ),
+        !readOnly&&h("button",{ref:chevRef,className:"tl-field-chevron",onClick:()=>setMenu(v=>!v)},h(Ic,{name:"chevron"})),
+        !readOnly&&h(Dropdown,{open:menu,onClose:()=>setMenu(false),triggerRef:chevRef,
+          width:(wrapRef.current&&wrapRef.current.offsetWidth)||220,align:"right"},
+          (tokens||[]).map(tk=>h(MenuItem,{key:tk.label,active:value===tk.ms,onClick:()=>{onChange(tk.ms);setMenu(false);},
+            right:value===tk.ms&&h("span",{className:"tl-menu-check"},h(Ic,{name:"check"}))},
+            h("span",{className:"tl-menu-text"},tk.label,h("span",{className:"tl-menu-dim"}," "+tk.ms+"ms")),
+            tk.usage&&h("span",{className:"t-tt-wrap tl-menu-help",
+                onClick:e=>e.stopPropagation(),onMouseDown:e=>e.stopPropagation()},
+              h(Ic,{name:"help",size:13}),
+              h("span",{className:"t-tt tl-tt-usage",role:"tooltip"},tk.usage)))) ),
+        readOnly&&readOnlyHint&&h("span",{className:"t-tt",role:"tooltip"},readOnlyHint),
+      );
+    }
+
+    // shared plot geometry for both the easing curve and the spring curve.
+    // (Figma easing frame node 13044:2506: 269×162 with generous H margins + tight V margins.)
+    const CURVE = { VBW:269, VBH:162, PAD_X:60, PAD_Y:16 };
+
+    function EasingEditor({easing, cubic, spring, durationMs, propKey, apply}){
+      const [tab, setTab] = useState(spring ? "springs" : "easing");
+      // when the user selects a different property, reflect that property's mode
+      useEffect(()=>{ setTab(spring ? "springs" : "easing"); /* eslint-disable-next-line */ }, [propKey]);
+
+      // remember the last real (non-spring) easing so we can restore it when
+      // switching back from the Springs tab.
+      const lastEasingRef = useRef("ease");
+      useEffect(()=>{ if(!spring && easing && !/^linear\(/.test(easing)) lastEasingRef.current = easing; }, [easing, spring]);
+
+      const applySpring = useCallback((stiffness,damping,mass,name)=>{
+        const sim = simulateSpring(stiffness,damping,mass);
+        apply({ spring:{stiffness,damping,mass,name}, easing:sim.css, durationMs:sim.durationMs });
+      },[apply]);
+
+      const selectTab = useCallback(t=>{
+        if(t==="springs"){
+          setTab("springs");
+          if(!spring){ const p=SPRING_PRESETS[0]; applySpring(p.stiffness,p.damping,p.mass,p.label); }
+        } else {
+          setTab("easing");
+          if(spring) apply({ spring:null, easing:lastEasingRef.current||"ease" });
+        }
+      },[spring,apply,applySpring]);
+
+      // page-slide between the two tabs (transitions.dev · 08-page-side-by-side).
+      // both pages stay mounted so they can cross-slide; the container height
+      // follows the active page so it resizes smoothly while sliding.
+      const slideRef = useRef(null);
+      const easePageRef = useRef(null);
+      const springPageRef = useRef(null);
+      const page = tab==="springs" ? "2" : "1";
+      useLayoutEffect(()=>{
+        const slide = slideRef.current; if(!slide) return;
+        const active = tab==="springs" ? springPageRef.current : easePageRef.current;
+        if(active) slide.style.height = active.offsetHeight + "px";
+      });
+
+      return h("div",{className:"tl-ease"},
+        h("div",{className:"tl-seg",role:"tablist"},
+          h("button",{className:cx("tl-seg-btn",tab==="easing"&&"is-active"),role:"tab",
+            "aria-selected":tab==="easing",onClick:()=>selectTab("easing")},"Easing"),
+          h("button",{className:cx("tl-seg-btn",tab==="springs"&&"is-active"),role:"tab",
+            "aria-selected":tab==="springs",onClick:()=>selectTab("springs")},"Springs"),
+        ),
+        h("div",{className:"tl-ease-pages t-page-slide",ref:slideRef,"data-page":page},
+          h("div",{className:"t-page",ref:easePageRef,"data-page-id":"1","aria-hidden":tab!=="easing"},
+            h(EasingTab,{easing,cubic,setEasing:v=>apply({easing:v, spring:null})})),
+          h("div",{className:"t-page",ref:springPageRef,"data-page-id":"2","aria-hidden":tab!=="springs"},
+            h(SpringTab,{spring,applySpring})),
+        ),
+        h(PositionPreview,{easing, durationMs}),
+      );
+    }
+
+    // Animated position preview (à la easing.dev): a marker travels left→right
+    // using the live timing function + duration, pauses, returns, and loops.
+    // Works for any timing function — cubic-bezier keywords or a spring's linear().
+    function PositionPreview({easing, durationMs}){
+      const trackRef = useRef(null);
+      const dotRef = useRef(null);
+      const [playing, setPlaying] = useState(false);
+      const safeEasing = (!easing || easing.trim()==="") ? "linear" : easing;
+      const dur = Math.max(120, durationMs || 0);
+
+      useEffect(()=>{
+        if(!playing) return;
+        const dot = dotRef.current, track = trackRef.current;
+        if(!dot || !track) return;
+        let cancelled = false, anim = null, timer = null, atRight = false;
+        const GAP = 480, DOT = 14;
+        const travel = ()=> Math.max(0, track.clientWidth - DOT - 8);
+        const step = ()=>{
+          if(cancelled) return;
+          const from = atRight ? travel() : 0;
+          const to   = atRight ? 0 : travel();
+          try {
+            anim = dot.animate(
+              [{transform:`translateX(${from}px)`},{transform:`translateX(${to}px)`}],
+              {duration:dur, easing:safeEasing, fill:"forwards"});
+          } catch {
+            anim = dot.animate(
+              [{transform:`translateX(${from}px)`},{transform:`translateX(${to}px)`}],
+              {duration:dur, easing:"linear", fill:"forwards"});
+          }
+          anim.onfinish = ()=>{ if(cancelled) return; atRight = !atRight; timer = setTimeout(step, GAP); };
+        };
+        step();
+        return ()=>{ cancelled = true; if(anim){try{anim.cancel();}catch{}} if(timer)clearTimeout(timer); };
+      },[playing, safeEasing, dur]);
+
+      return h("div",{className:"tl-preview"},
+        h("div",{className:"tl-preview-head"},
+          h("span",{className:"tl-preview-title"},"Position Preview"),
+          h("button",{className:"tl-preview-btn",onClick:()=>setPlaying(p=>!p)},
+            h(Ic,{name:playing?"pause":"play",size:11}),
+            h("span",null,playing?"Pause":"Play")),
+        ),
+        h("div",{className:"tl-preview-track",ref:trackRef},
+          h("span",{className:"tl-preview-rail"}),
+          h("span",{className:"tl-preview-end left"}),
+          h("span",{className:"tl-preview-end right"}),
+          h("span",{className:"tl-preview-dot",ref:dotRef}),
+        ),
+      );
+    }
+
+    function EasingTab({easing, cubic, setEasing}){
+      const isPreset = EASING_PRESETS.some(p=>p.keyword===easing);
+      const isCubic = !isPreset && /^cubic-bezier\(/.test(easing);
+      const isLibrary = EASING_LABEL.has(normEase(easing));
+      const mode = isLibrary ? "__lib" : isPreset ? easing : isCubic ? "__cubic" : "__custom";
+      const cb = cubic || [0.25,0.1,0.25,1];
+      const svgRef = useRef(null);
+      const easeRef = useRef(null);
+      const [easeOpen, setEaseOpen] = useState(false);
+      const selLabel = easingLabel(easing) || (isCubic ? "cubic-bezier(\u2026)" : easing ? easing : "custom");
+      const pickEase = useCallback(v=>{
+        if(v==="__cubic") setEasing(`cubic-bezier(${cb.join(", ")})`);
+        else if(v==="__custom") setEasing("");
+        else setEasing(v);
+        setEaseOpen(false);
+      },[cb,setEasing]);
+
+      const setCubicVal = useCallback((i,v)=>{
+        const next = [...cb]; next[i]=Math.round(parseFloat(v)*100)/100;
+        if(isNaN(next[i])) return;
+        setEasing(`cubic-bezier(${next.join(", ")})`);
+      },[cb,setEasing]);
+
+      const { VBW, VBH, PAD_X, PAD_Y } = CURVE;
+      const plotW = VBW - 2*PAD_X, plotH = VBH - 2*PAD_Y;
+      const originX = PAD_X, originY = VBH - PAD_Y, endX = VBW - PAD_X, endY = PAD_Y;
+      const fx = f => PAD_X + f*plotW;
+      const fy = v => (VBH - PAD_Y) - v*plotH;
+
+      const startHandleDrag = useCallback((pointIdx, e)=>{
+        e.preventDefault(); e.stopPropagation();
+        const svg = svgRef.current;
+        if(!svg) return;
+        const calc = (clientX, clientY) => {
+          const rect = svg.getBoundingClientRect();
+          const vbx = (clientX - rect.left) / rect.width * VBW;
+          const vby = (clientY - rect.top) / rect.height * VBH;
+          let x = (vbx - PAD_X) / plotW;
+          let y = ((VBH - PAD_Y) - vby) / plotH;
+          x = Math.round(Math.max(0, Math.min(1, x)) * 100) / 100;
+          y = Math.round(Math.max(-0.5, Math.min(1.5, y)) * 100) / 100;
+          const next = [...cb];
+          next[pointIdx * 2] = x;
+          next[pointIdx * 2 + 1] = y;
+          setEasing(`cubic-bezier(${next.join(", ")})`);
+        };
+        const onMove = e2 => calc(e2.clientX, e2.clientY);
+        const onUp = () => { window.removeEventListener("mousemove",onMove); window.removeEventListener("mouseup",onUp); };
+        window.addEventListener("mousemove",onMove);
+        window.addEventListener("mouseup",onUp);
+      },[cb,setEasing,plotW,plotH,VBW,VBH,PAD_X,PAD_Y]);
+
+      const p1x = fx(cb[0]), p1y = fy(cb[1]);
+      const p2x = fx(cb[2]), p2y = fy(cb[3]);
+
+      return h(React.Fragment,null,
+        h("button",{ref:easeRef,className:cx("tl-select",easeOpen&&"is-open"),onClick:()=>setEaseOpen(v=>!v)},
+          h("span",{className:"tl-select-label"},selLabel),
+          h("span",{className:"tl-select-chev"},h(Ic,{name:"chevron"}))),
+        h(Dropdown,{open:easeOpen,onClose:()=>setEaseOpen(false),triggerRef:easeRef,
+          width:Math.max(248,(easeRef.current&&easeRef.current.offsetWidth)||248),align:"left"},
+          EASING_LIBRARY.map((o,i)=> o.group
+            ? h("div",{key:"g"+i,className:"tl-menu-group"},o.group)
+            : h(MenuItem,{key:o.value,active:normEase(o.value)===normEase(easing)||(o.value===mode),
+                onClick:()=>pickEase(o.value),
+                right:(normEase(o.value)===normEase(easing))&&h("span",{className:"tl-menu-check"},h(Ic,{name:"check"}))},
+                h("span",{className:"tl-menu-text"},o.label),
+                o.usage&&h("span",{className:"t-tt-wrap tl-menu-help",
+                    onClick:e=>e.stopPropagation(),onMouseDown:e=>e.stopPropagation()},
+                  h(Ic,{name:"help",size:13}),
+                  h("span",{className:"t-tt tl-tt-usage",role:"tooltip"},o.usage))))),
+        h("div",{className:"tl-cubic-row"},
+          ...[0,1,2,3].map(i=>h("input",{key:i,type:"number",step:0.05,min:i%2===0?0:undefined,max:i%2===0?1:undefined,
+            value:cb[i],onChange:e=>setCubicVal(i,e.target.value)})),
+        ),
+        mode==="__custom" && h("input",{className:"tl-custom-input",value:easing,
+          placeholder:"e.g. steps(4, end)",
+          onChange:e=>setEasing(e.target.value)}),
+        h("div",{className:"tl-curve"},
+          h("svg",{ref:svgRef,viewBox:`0 0 ${VBW} ${VBH}`},
+            h("defs",null,
+              h("pattern",{id:"tl-curve-dots",width:14,height:14,patternUnits:"userSpaceOnUse",patternTransform:"translate(7 7)"},
+                h("circle",{cx:0,cy:0,r:1,fill:"rgba(0,0,0,0.10)"}))),
+            h("rect",{x:0,y:0,width:VBW,height:VBH,fill:"url(#tl-curve-dots)",style:{pointerEvents:"none"}}),
+            h("path",{d:`M ${originX} ${originY} C ${p1x} ${p1y}, ${p2x} ${p2y}, ${endX} ${endY}`,
+              fill:"none",stroke:"#181a1e",strokeWidth:2,strokeLinecap:"round"}),
+            h("line",{x1:p1x,y1:p1y,x2:originX,y2:originY,stroke:"#1A7AFF",strokeWidth:2,strokeLinecap:"round",style:{pointerEvents:"none"}}),
+            h("line",{x1:p2x,y1:p2y,x2:endX,y2:endY,stroke:"#1A7AFF",strokeWidth:2,strokeLinecap:"round",style:{pointerEvents:"none"}}),
+            h("circle",{cx:p1x,cy:p1y,r:5.5,fill:"#1A7AFF",style:{pointerEvents:"none",filter:"drop-shadow(0 1px 3px rgba(0,0,0,.25))"}}),
+            h("circle",{cx:p2x,cy:p2y,r:5.5,fill:"#1A7AFF",style:{pointerEvents:"none",filter:"drop-shadow(0 1px 3px rgba(0,0,0,.25))"}}),
+            h("circle",{className:"tl-curve-handle",cx:p1x,cy:p1y,r:9,fill:"transparent",
+              onMouseDown:e=>startHandleDrag(0,e)}),
+            h("circle",{className:"tl-curve-handle",cx:p2x,cy:p2y,r:9,fill:"transparent",
+              onMouseDown:e=>startHandleDrag(1,e)}),
+          ),
+        ),
+      );
+    }
+
+    function SpringTab({spring, applySpring}){
+      const sp = spring || { ...SPRING_PRESETS[0] };
+      const stiffness = sp.stiffness, damping = sp.damping, mass = sp.mass ?? 1;
+      const presetName = matchSpringPreset({stiffness,damping,mass});
+      const spRef = useRef(null);
+      const [spOpen, setSpOpen] = useState(false);
+
+      const sim = useMemo(()=>simulateSpring(stiffness,damping,mass),[stiffness,damping,mass]);
+      const overshoots = useMemo(()=>sim.values.some(v=>v>1.001),[sim]);
+
+      const setParam = useCallback((key,val)=>{
+        const next = { stiffness, damping, mass };
+        next[key] = val;
+        applySpring(next.stiffness, next.damping, next.mass, matchSpringPreset(next));
+      },[stiffness,damping,mass,applySpring]);
+
+      // spring curve — auto-fit vertically so overshoot above 1 stays in frame.
+      const { VBW, VBH, PAD_X, PAD_Y } = CURVE;
+      const plotW = VBW - 2*PAD_X, plotH = VBH - 2*PAD_Y;
+      const vals = sim.values;
+      const hi = Math.max(1, ...vals), lo = Math.min(0, ...vals);
+      const range = (hi - lo) || 1;
+      const sx = i => PAD_X + (i/(vals.length-1))*plotW;
+      const sy = v => (VBH - PAD_Y) - ((v - lo)/range)*plotH;
+      const yOne = sy(1), yZero = sy(0);
+      const curveD = vals.map((v,i)=>`${i===0?"M":"L"} ${sx(i).toFixed(2)} ${sy(v).toFixed(2)}`).join(" ");
+
+      return h(React.Fragment,null,
+        h("button",{ref:spRef,className:cx("tl-select",spOpen&&"is-open"),onClick:()=>setSpOpen(v=>!v)},
+          h("span",{className:"tl-select-label"},presetName==="Custom"?"Custom spring":presetName),
+          h("span",{className:"tl-select-chev"},h(Ic,{name:"chevron"}))),
+        h(Dropdown,{open:spOpen,onClose:()=>setSpOpen(false),triggerRef:spRef,
+          width:Math.max(248,(spRef.current&&spRef.current.offsetWidth)||248),align:"left"},
+          SPRING_PRESETS.map(p=>h(MenuItem,{key:p.label,active:p.label===presetName,
+            onClick:()=>{applySpring(p.stiffness,p.damping,p.mass,p.label);setSpOpen(false);},
+            right:p.label===presetName&&h("span",{className:"tl-menu-check"},h(Ic,{name:"check"}))},
+            h("span",{className:"tl-menu-text"},p.label),
+            p.usage&&h("span",{className:"t-tt-wrap tl-menu-help",
+                onClick:e=>e.stopPropagation(),onMouseDown:e=>e.stopPropagation()},
+              h(Ic,{name:"help",size:13}),
+              h("span",{className:"t-tt tl-tt-usage",role:"tooltip"},p.usage))))),
+        h("div",{className:"tl-bounce"},
+          h("div",{className:"tl-bounce-title"},"Spring physics"),
+          h("div",{className:"tl-bounce-row"},
+            h("label",null,"Stiffness"),
+            h("input",{type:"range",min:20,max:400,step:5,value:stiffness,
+              onChange:e=>setParam("stiffness",parseFloat(e.target.value))}),
+            h("span",{className:"tl-bounce-val"},Math.round(stiffness)),
+          ),
+          h("div",{className:"tl-bounce-row"},
+            h("label",null,"Damping"),
+            h("input",{type:"range",min:1,max:120,step:1,value:damping,
+              onChange:e=>setParam("damping",parseFloat(e.target.value))}),
+            h("span",{className:"tl-bounce-val"},Math.round(damping)),
+          ),
+          h("div",{className:"tl-bounce-row"},
+            h("label",null,"Mass"),
+            h("input",{type:"range",min:0.2,max:5,step:0.1,value:mass,
+              onChange:e=>setParam("mass",parseFloat(e.target.value))}),
+            h("span",{className:"tl-bounce-val"},mass.toFixed(1)),
+          ),
+          h("div",{className:"tl-spring-dur"},
+            h("span",null,"Duration"),
+            h("b",null,"~"+sim.durationMs+"ms"),
+            h("span",{className:"tl-spring-dur-hint"},"· derived"+(overshoots?" · overshoots":"")),
+          ),
+        ),
+        h("div",{className:"tl-curve"},
+          h("svg",{viewBox:`0 0 ${VBW} ${VBH}`},
+            h("defs",null,
+              h("pattern",{id:"tl-spring-dots",width:14,height:14,patternUnits:"userSpaceOnUse",patternTransform:"translate(7 7)"},
+                h("circle",{cx:0,cy:0,r:1,fill:"rgba(0,0,0,0.10)"}))),
+            h("rect",{x:0,y:0,width:VBW,height:VBH,fill:"url(#tl-spring-dots)",style:{pointerEvents:"none"}}),
+            // target (value = 1) and baseline (value = 0) reference lines
+            h("line",{x1:PAD_X,y1:yOne,x2:VBW-PAD_X,y2:yOne,stroke:"#1A7AFF",strokeWidth:1,
+              strokeDasharray:"3 4",style:{opacity:0.5,pointerEvents:"none"}}),
+            h("line",{x1:PAD_X,y1:yZero,x2:VBW-PAD_X,y2:yZero,stroke:"rgba(0,0,0,0.18)",strokeWidth:1,
+              strokeDasharray:"3 4",style:{pointerEvents:"none"}}),
+            h("path",{d:curveD,fill:"none",stroke:"#181a1e",strokeWidth:2,strokeLinecap:"round",strokeLinejoin:"round"}),
+          ),
+        ),
+      );
+    }
+
+    function ScrubZone({scaleMs}){
+      const { preview, registry, activeId } = useContext(TimelineCtx);
+      const areaRef = useRef(null);
+      const startedRef = useRef(false);
+
+      const pxToMs = useCallback(clientX=>{
+        if(!areaRef.current) return 0;
+        const rect = areaRef.current.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min((clientX - rect.left) / rect.width, 1));
+        return ratio * scaleMs;
+      },[scaleMs]);
+
+      const doSeek = useCallback(ms=>{
+        if(preview.getState()==="idle" && !startedRef.current){
+          if(!activeId) return;
+          const entry = registry.getEffective(activeId);
+          if(!entry) return;
+          startedRef.current = true;
+          preview.playPaused(entry, ms);
+        } else {
+          preview.seek(ms);
+        }
+      },[preview,registry,activeId]);
+
+      const startScrub = useCallback(e=>{
+        e.preventDefault();
+        startedRef.current = false;
+        doSeek(pxToMs(e.clientX));
+        const onMove = e2 => doSeek(pxToMs(e2.clientX));
+        const onUp = () => { startedRef.current = false; window.removeEventListener("mousemove",onMove); window.removeEventListener("mouseup",onUp); };
+        window.addEventListener("mousemove",onMove);
+        window.addEventListener("mouseup",onUp);
+      },[doSeek,pxToMs]);
+
+      return h("div",{className:"tl-scrub-zone",ref:areaRef,onMouseDown:startScrub});
+    }
+
+    function Tracks({et, selProp, setSelProp, onPropChange, snap, scaleMs}){
+      const t = usePreviewTime();
+      const ratio = Math.min(t / scaleMs, 1);
+      const ROW_H = 48;
+      const rowsRef = useRef(null);
+      const [order, setOrder] = useState([]);
+      const [dragProp, setDragProp] = useState(null);
+      const propKey = et.map(x=>x.property).join("|");
+      useEffect(()=>{
+        const props = et.map(x=>x.property);
+        setOrder(prev=>{
+          const kept = prev.filter(p=>props.includes(p));
+          const added = props.filter(p=>!kept.includes(p));
+          return [...kept, ...added];
+        });
+      },[propKey]);
+      const orderedRows = order.map(p=>et.find(x=>x.property===p)).filter(Boolean);
+      const startReorder = useCallback((property,e)=>{
+        e.preventDefault(); e.stopPropagation();
+        setSelProp(property);
+        setDragProp(property);
+        const top = rowsRef.current ? rowsRef.current.getBoundingClientRect().top : 0;
+        const onMove = e2=>{
+          const idx = Math.floor((e2.clientY - top) / ROW_H);
+          setOrder(prev=>{
+            const cur = prev.indexOf(property);
+            if(cur<0) return prev;
+            const target = Math.max(0, Math.min(prev.length-1, idx));
+            if(target===cur) return prev;
+            const next = prev.slice();
+            next.splice(cur,1);
+            next.splice(target,0,property);
+            return next;
+          });
+        };
+        const onUp = ()=>{ setDragProp(null); window.removeEventListener("mousemove",onMove); window.removeEventListener("mouseup",onUp); };
+        window.addEventListener("mousemove",onMove); window.addEventListener("mouseup",onUp);
+      },[setSelProp]);
+      const majorStep = scaleMs <= 10000 ? 1000 : scaleMs <= 25000 ? 5000 : 10000;
+      const minorStep = majorStep / 4;
+      const ruler=[];
+      for(let ms=0; ms<=scaleMs; ms+=majorStep){
+        const left=(ms/scaleMs)*100;
+        ruler.push(h("span",{key:"l"+ms,className:cx("maj",ms===0&&"first",ms===scaleMs&&"last"),style:{left:left+"%"}},(ms/1000)+"s"));
+      }
+      for(let ms=minorStep; ms<scaleMs; ms+=minorStep){
+        if(ms%majorStep===0) continue;
+        ruler.push(h("span",{key:"t"+ms,className:"tick",style:{left:((ms/scaleMs)*100)+"%"}}));
+      }
+      return h("div",{className:"tl-tracks"},
+        h("div",{className:"tl-ruler-row"},
+          h("div",{className:"tl-ruler-spacer"}),
+          h("div",{className:"tl-ruler"},...ruler)),
+        h("div",{className:"tl-rows",ref:rowsRef},
+          ...orderedRows.map(row=>h(PropTrack,{
+            key:row.property, property:row.property,
+            delayMs:row.delayMs, durationMs:row.durationMs, lockDuration:!!row.spring,
+            selected:row.property===selProp, dragging:row.property===dragProp, snap, scaleMs,
+            onSelect:()=>setSelProp(row.property),
+            onReorder:e=>startReorder(row.property,e),
+            onDelayChange:ms=>onPropChange(row.property,{delayMs:ms}),
+            onDurationChange:ms=>onPropChange(row.property,{durationMs:ms}),
+          }))),
+        h(ScrubZone,{scaleMs}),
+        h("div",{className:"tl-playhead-layer"},
+          h("div",{className:"tl-playhead",style:{left:(ratio*100)+"%"}},
+            h("svg",{className:"tl-playhead-head",viewBox:"0 0 16.666 24",width:"16.666",height:"24",fill:"none"},
+              h("path",{d:"M13.666 7.333C13.666 11.609 9.333 15.666 9.333 19.942L9.333 24L7.333 24L7.333 19.942C7.333 15.666 3 11.609 3 7.333C3 4.387 5.387 2 8.333 2C11.279 2 13.666 4.387 13.666 7.333Z",fill:"#1A7AFF"}))),
+        ),
+      );
+    }
+
+    function Inspector({entry, selProp, onPropChange, snap}){
+      const et = entry.effectiveTimings || [];
+      const sel = et.find(t=>t.property===selProp) || et[0];
+      if(!sel) return h("div",{className:"tl-inspector"});
+      const cubic = easingToCubic(sel.easing);
+      const isSpring = !!sel.spring;
+      return h("div",{className:"tl-inspector"},
+        h("div",{className:"tl-insp-title"},sel.property),
+        h(ValueField,{label:"Duration",value:sel.durationMs,min:0,max:5000,step:25,tokens:DURATION_TOKENS,snap,
+          readOnly:isSpring,
+          readOnlyHint:"Duration is set by the spring. A spring's settle time is derived from its stiffness, damping and mass \u2014 so it can't be edited directly. Switch to the Easing tab to set a fixed duration.",
+          onChange:v=>onPropChange(sel.property,{durationMs:v})}),
+        h(ValueField,{label:"Delay",value:sel.delayMs,min:0,max:5000,step:25,tokens:DELAY_TOKENS,snap,
+          onChange:v=>onPropChange(sel.property,{delayMs:v})}),
+        h(EasingEditor,{easing:sel.easing, cubic, spring:sel.spring, durationMs:sel.durationMs, propKey:sel.property,
+          apply:partial=>onPropChange(sel.property,partial)}),
+      );
+    }
+
+    function Body({entry, onPropChange, state, play, pause, resume, restart, stop, speed, setSpeed, snap}){
+      const et = entry.effectiveTimings || [];
+      const [selProp, setSelProp] = useState(et[0]?.property ?? null);
+      const [zoom, setZoom] = useState(ZOOM_DEFAULT);
+      const scaleMs = scaleFromZoom(zoom);
+      useEffect(()=>{
+        if(et.length && !et.find(t=>t.property===selProp)) setSelProp(et[0]?.property);
+      },[et,selProp]);
+
+      return h("div",{className:"tl-body"},
+        h("div",{className:"tl-main"},
+          h(Transport,{state,disabled:!entry,onPlay:play,onPause:pause,onResume:resume,onRestart:restart,onStop:stop,speed,setSpeed,zoom,setZoom}),
+          h(Tracks,{et,selProp,setSelProp,onPropChange,snap,scaleMs}),
+        ),
+        h(Inspector,{entry,selProp,onPropChange,snap}),
+      );
+    }
+
+    function Transport({state,disabled,onPlay,onPause,onResume,onRestart,onStop,speed,setSpeed,zoom,setZoom}){
+      const t = usePreviewTime();
+      const spRef = useRef(null);
+      const [sp,setSp] = useState(false);
+      const playing = state==="playing";
+      const onMain = () => playing ? onPause() : state==="paused" ? onResume() : onPlay();
+      return h("div",{className:"tl-transport"},
+        h("div",{className:"tl-transport-left"},
+          h("span",{className:"tl-timecode"}, fmtTimecode(t)),
+          h("button",{ref:spRef,className:cx("tl-ghost-btn","tl-speed",sp&&"is-active"),onClick:()=>setSp(v=>!v)},
+            fmtSpeed(speed), h("span",{className:"tl-ghost-chev"},h(Ic,{name:"chevron"}))),
+          h(Dropdown,{open:sp,onClose:()=>setSp(false),triggerRef:spRef,width:120,align:"left"},
+            SPEEDS.map(s=>h(MenuItem,{key:s,active:s===speed,onClick:()=>{setSpeed(s);setSp(false);},
+              right:s===speed&&h("span",{className:"tl-menu-check"},h(Ic,{name:"check"}))},fmtSpeed(s)))) ),
+        h("div",{className:"tl-transport-center"},
+          h("button",{className:"tl-play-btn",disabled,onClick:onMain,title:playing?"Pause":"Play"},
+            h("span",{className:"t-icon-swap","data-state":playing?"b":"a"},
+              h("span",{className:"t-icon","data-icon":"a"},h(Ic,{name:"play",size:12})),
+              h("span",{className:"t-icon","data-icon":"b"},h(Ic,{name:"pause",size:16}))))),
+        h("div",{className:"tl-transport-right"},
+          h("div",{className:"tl-zoom",title:"Timeline zoom"},
+            h("div",{className:"tl-zoom-track","aria-hidden":true}),
+            h("input",{type:"range",min:ZOOM_MIN,max:ZOOM_MAX,value:zoom,
+              onChange:e=>setZoom(Number(e.target.value))})),
+          h("span",{className:"t-tt-wrap"},
+            h("button",{className:"tl-icon-btn ghost t-tt-trigger",disabled,"aria-label":"Replay",onClick:onRestart},h(Ic,{name:"restart"})),
+            h("span",{className:"t-tt tl-tt-below",role:"tooltip"},"Replay")),
+        ),
+      );
+    }
+
+    function TimelinePanel(){
+      const entries=useReg(); const{active,setActiveId}=useActive();
+      const{state,play,pause,resume,restart,stop}=usePlayback(); const{setPropOverride}=usePropOverride();
+      const{registry,preview}=useContext(TimelineCtx);
+      const[copied,setCopied]=useState(false);
+      const[minimized,setMinimized]=useState(false);
+      const[panelHeight,setPanelHeight]=useState(440);
+      const[resizing,setResizing]=useState(false);
+      const[speed,setSpeed]=useState(1);
+      const[loop,setLoop]=useState(false);
+      const[snap,setSnap]=useState(true);
+      // ── refine ──
+      const[refineOpen,setRefineOpen]=useState(false);
+      const[refinePhase,setRefinePhase]=useState("idle"); // idle | scanning | done | error
+      const[refineJobId,setRefineJobId]=useState(null);
+      const[refineLog,setRefineLog]=useState([]);
+      const[refineSuggestions,setRefineSuggestions]=useState([]);
+      const[refineSummary,setRefineSummary]=useState(null);
+      const[refineError,setRefineError]=useState(null);
+      const[refineLabel,setRefineLabel]=useState(null);
+      const[appliedIds,setAppliedIds]=useState({});
+      const[refineMode,setRefineMode]=useState("llm"); // llm (Agent) | deterministic
+      const[refineType,setRefineType]=useState("small"); // small | replace
+      const[llmAvailable,setLlmAvailable]=useState(null); // null=unknown, true/false from /health
+      const[cliInstalled,setCliInstalled]=useState(null); // null=unknown, true/false from /health
+      // probe the relay so the idle panel can show the right availability copy
+      const refreshHealth=useCallback(async()=>{
+        try{const j=await relayHealth();setLlmAvailable(!!j.llmAvailable);
+          setCliInstalled(j.cliInstalled==null?null:!!j.cliInstalled);return j;}
+        catch{setLlmAvailable(false);setCliInstalled(false);return null;}
+      },[]);
+      // the Refine button toggles the panel; opening drops into the idle state
+      // (description + Start scanning) rather than auto-scanning.
+      const openRefine=useCallback(()=>{
+        if(!active)return;
+        if(refineOpen){setRefineOpen(false);return;}
+        setRefineOpen(true);setRefinePhase("idle");setRefineLog([]);
+        setRefineSuggestions([]);setRefineSummary(null);setRefineError(null);
+        setAppliedIds({});setRefineLabel(active.label);setRefineJobId(null);
+        refreshHealth();
+      },[active,refineOpen,refreshHealth]);
+      // "Start scanning" resolves availability first, then posts the job.
+      const startScan=useCallback(async()=>{
+        if(!active)return;
+        setRefinePhase("scanning");setRefineLog([]);
+        setRefineSuggestions([]);setRefineSummary(null);setRefineError(null);
+        setAppliedIds({});setRefineLabel(active.label);setRefineJobId(null);
+        const j=await refreshHealth();
+        const avail=j?!!j.llmAvailable:false;
+        const mode=(refineMode==="llm"&&!avail)?"deterministic":refineMode;
+        if(mode!==refineMode)setRefineMode(mode);
+        try{
+          const timings=(active.effectiveTimings||[]).map(t=>({property:t.property,durationMs:t.durationMs,delayMs:t.delayMs,easing:t.easing}));
+          const{id}=await relayCreateJob({transitionId:active.id,label:active.label,selector:active.bindings&&active.bindings.selector,timings,mode,refineType});
+          setRefineJobId(id);
+        }catch(e){
+          setRefinePhase("error");
+          setRefineError(h(React.Fragment,null,"Couldn't reach the refine relay. Start it with ",h("code",{className:"tl-code"},"npx transitions-refine live"),"."));
+        }
+      },[active,refineMode,refineType,refreshHealth]);
+      const changeRefineMode=useCallback((mode)=>{setRefineMode(mode);setRefinePhase("idle");refreshHealth();},[refreshHealth]);
+      const changeRefineType=useCallback((t)=>{setRefineType(t);setRefinePhase("idle");},[]);
+      // poll the relay while a job is running
+      useEffect(()=>{
+        if(!refineJobId||refinePhase!=="scanning")return;
+        let live=true,to=null;
+        const tick=async()=>{
+          try{
+            const job=await relayGetJob(refineJobId);
+            if(!live)return;
+            if(Array.isArray(job.statusLog))setRefineLog(job.statusLog);
+            if(job.status==="done"){setRefineSuggestions((job.result&&job.result.suggestions)||[]);setRefineSummary(job.result&&job.result.summary);setRefinePhase("done");return;}
+            if(job.status==="error"){setRefineError(job.error||"The agent reported an error.");setRefinePhase("error");return;}
+            to=setTimeout(tick,500);
+          }catch(e){if(live){setRefineError("Lost connection to the relay.");setRefinePhase("error");}}
+        };
+        to=setTimeout(tick,400);
+        return()=>{live=false;if(to)clearTimeout(to);};
+      },[refineJobId,refinePhase]);
+      const applySuggestion=useCallback((s)=>{
+        const p=s.patch||{};if(!p.property)return;
+        const o={};
+        if(p.durationMs!=null)o.durationMs=p.durationMs;
+        if(p.delayMs!=null)o.delayMs=p.delayMs;
+        if(p.easing!=null)o.easing=p.easing;
+        setPropOverride(p.property,o);
+        setAppliedIds(prev=>({...prev,[s.id]:true}));
+      },[setPropOverride]);
+      const applyAllSuggestions=useCallback(()=>{
+        for(const s of refineSuggestions){if(!appliedIds[s.id])applySuggestion(s);}
+      },[refineSuggestions,appliedIds,applySuggestion]);
+      const panelMinH=200;
+      const panelMaxH=useCallback(()=>Math.round(window.innerHeight*0.92),[]);
+      useEffect(()=>{if(!active&&entries.length>0)setActiveId(entries[0].id);},[active,entries,setActiveId]);
+      useEffect(()=>{preview.setRate(speed);},[preview,speed]);
+      useEffect(()=>{preview.setLoop(loop);},[preview,loop]);
+      const startResize=useCallback(e=>{
+        e.preventDefault();
+        const startY=e.clientY; const startH=panelHeight;
+        setResizing(true);
+        document.body.style.cursor="ns-resize";
+        document.body.style.userSelect="none";
+        const onMove=e2=>setPanelHeight(Math.max(panelMinH,Math.min(panelMaxH(),startH+(startY-e2.clientY))));
+        const onUp=()=>{setResizing(false);document.body.style.cursor="";document.body.style.userSelect="";window.removeEventListener("mousemove",onMove);window.removeEventListener("mouseup",onUp);};
+        window.addEventListener("mousemove",onMove);window.addEventListener("mouseup",onUp);
+      },[panelHeight,panelMaxH]);
+      const copyValues=useCallback(()=>{
+        if(!active)return;
+        const et=active.effectiveTimings||[];
+        const css=et.map(t=>
+          `${t.property} ${formatCssTime(t.durationMs)} ${t.easing} ${formatCssTime(t.delayMs)}`
+        ).join(",\n       ");
+        navigator.clipboard.writeText("transition: "+css+";").then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1500);});
+      },[active]);
+      const resetOverrides=useCallback(()=>{if(active)registry.clearOverride(active.id);},[registry,active]);
+
+      // whole-component open/close uses the transitions.dev panel reveal:
+      // keep the panel mounted while it animates, flip data-open on the next
+      // frame so the closed → open transition runs, and delay unmount on close.
+      const[render,setRender]=useState(!minimized);
+      const[panelOpen,setPanelOpen]=useState(false);
+      // phase picks which closed-state distance/scale the shared closed render
+      // resolves to: "opening" → open-distance/open-scale start point, "closing"
+      // → close-distance/close-scale end point. First mount opens, so start here.
+      const[phase,setPhase]=useState("opening");
+      useEffect(()=>{
+        let raf, to;
+        if(!minimized){
+          setRender(true);
+          setPhase("opening");
+          raf=requestAnimationFrame(()=>{raf=requestAnimationFrame(()=>setPanelOpen(true));});
+          return()=>{if(raf)cancelAnimationFrame(raf);};
+        }
+        setPhase("closing");
+        setPanelOpen(false);
+        // unmount after the slide-out finishes; read the live close-dur so long
+        // tweak values from the controls don't clip the animation. +80ms buffer.
+        const closeMs=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--panel-close-dur"))||350;
+        to=setTimeout(()=>setRender(false),closeMs+80);
+        return()=>clearTimeout(to);
+      },[minimized]);
+
+      // demo controls (top-right) drive open/close so tweaks can be previewed
+      // without hunting for the Minimize button. "replay" closes then re-opens.
+      useEffect(()=>{
+        const onToggle=(e)=>{
+          const action=e.detail&&e.detail.action;
+          if(action==="toggle"){setMinimized(v=>!v);return;}
+          setMinimized(true);
+          const closeMs=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--panel-close-dur"))||350;
+          setTimeout(()=>setMinimized(false),closeMs+120);
+        };
+        window.addEventListener("tl-toggle-panel",onToggle);
+        return()=>window.removeEventListener("tl-toggle-panel",onToggle);
+      },[]);
+
+      return h(React.Fragment,null,
+        render&&h("div",{className:"t-panel-slide","data-timeline-panel":true,
+            "data-open":panelOpen?"true":"false","data-phase":phase,style:{height:panelHeight+"px"}},
+          h("div",{className:cx("tl-resize-handle",resizing&&"dragging"),onMouseDown:startResize,title:"Drag to resize"}),
+          h("div",{className:"tl-panel-body"},
+            h("div",{className:"tl-panel-main"},
+              h(Header,{entries,active,onSelect:setActiveId,onReset:resetOverrides,onCopy:copyValues,copied,
+                loop,setLoop,snap,setSnap,onMinimize:()=>setMinimized(true),onRefine:openRefine,refineActive:refineOpen}),
+              active
+                ?h(Body,{entry:active,onPropChange:(prop,o)=>setPropOverride(prop,o),
+                    state,play,pause,resume,restart,stop,speed,setSpeed,snap})
+                :h("div",{className:"tl-empty"},"Select a transition to inspect and edit it")),
+            h(RefinePanel,{open:refineOpen,onClose:()=>setRefineOpen(false),phase:refinePhase,label:refineLabel,
+              refineType,onType:changeRefineType,suggestions:refineSuggestions,summary:refineSummary,error:refineError,
+              appliedIds,onApply:applySuggestion,onApplyAll:applyAllSuggestions,
+              mode:refineMode,onMode:changeRefineMode,llmAvailable,cliInstalled,onStart:startScan}),
+          ),
+        ),
+        minimized&&h("div",{className:"tl-pill",onClick:()=>setMinimized(false)},
+          h("span",{className:"tl-pill-label"},"Transitions"),
+          h("span",{className:cx("tl-pill-count",String(entries.length).length===1&&"is-single")},entries.length)),
+      );
+    }
+
+    // ── demo boxes ──
+    function BoxResize(){const[on,set]=useState(false);return h("div",{className:"card"},h("h2",null,"Resize + Color"),h("p",null,"Click to toggle. Transitions: width, height, background, border-radius."),h("div",{"data-testid":"resize-box",className:"box-resize"+(on?" expanded":""),onClick:()=>set(v=>!v)}));}
+    function BoxOpacity(){const[on,set]=useState(false);return h("div",{className:"card"},h("h2",null,"Opacity + Scale"),h("p",null,"Click to fade. Uses ease-in-out at 600ms."),h("div",{"data-testid":"opacity-box",className:"box-opacity"+(on?" faded":""),onClick:()=>set(v=>!v)}));}
+    function BoxSlide(){const[on,set]=useState(false);return h("div",{className:"card"},h("h2",null,"Slide + Bounce"),h("p",null,"Click to slide. Custom cubic-bezier with overshoot."),h("div",{"data-testid":"slide-box",className:"box-slide"+(on?" moved":""),onClick:()=>set(v=>!v)}));}
+    function BoxColor(){const[on,set]=useState(false);return h("div",{className:"card"},h("h2",null,"Gradient Glow"),h("p",null,"Click to light up. 800ms background + box-shadow."),h("div",{"data-testid":"glow-box",className:"box-color"+(on?" lit":""),onClick:()=>set(v=>!v)}));}
+
+    // ── live controls for the whole-panel reveal transition (demo harness) ──
+    // transitions.dev motion tokens (values lifted verbatim from the skill's _root.css)
+    // transitions.dev easing motion tokens. `token` is the actual skill CSS var
+    // applied to the panel (so the control writes e.g. var(--morph-ease), not a
+    // copied literal); `value` is the resolved curve, used only to match a live
+    // :root value back onto a preset on init.
+    const EASE_PRESETS = [
+      {key:"panel",       label:"panel reveal",   token:"var(--panel-ease)",       value:"cubic-bezier(0.22, 1, 0.36, 1)", usage:"--panel-ease — the standard ease-out shared across most transitions.dev transitions."},
+      {key:"morph",       label:"morph open",     token:"var(--morph-ease)",       value:"cubic-bezier(0.34, 1.25, 0.64, 1)", usage:"--morph-ease — plus → menu morph, a gentle settle past the target."},
+      {key:"check-bob",   label:"check bob",      token:"var(--check-ease-bob)",   value:"cubic-bezier(0.34, 1.35, 0.64, 1)", usage:"--check-ease-bob — success check Y-bob overshoot."},
+      {key:"badge-pop",   label:"badge pop",      token:"var(--badge-pop-ease)",   value:"cubic-bezier(0.34, 1.36, 0.64, 1)", usage:"--badge-pop-ease — notification badge dot pop-in."},
+      {key:"digit",       label:"digit pop",      token:"var(--digit-ease)",       value:"cubic-bezier(0.34, 1.45, 0.64, 1)", usage:"--digit-ease — number pop-in, a springier overshoot."},
+      {key:"avatar",      label:"avatar spring",  token:"var(--avatar-ease-out)",  value:"cubic-bezier(0.34, 3.85, 0.64, 1)", usage:"--avatar-ease-out — avatar group hover return, aggressive spring."},
+      {key:"badge-close", label:"badge close",    token:"var(--badge-close-ease)", value:"cubic-bezier(0.4, 0, 0.2, 1)", usage:"--badge-close-ease — accelerate-decelerate close."},
+      {key:"text-swap",   label:"text swap",      token:"var(--text-swap-ease)",   value:"ease-in-out", usage:"--text-swap-ease — in-place text states swap."},
+      {key:"tooltip",     label:"tooltip",        token:"var(--tt-in-ease)",       value:"ease-out", usage:"--tt-in-ease — tooltip open/close."},
+      {key:"shimmer",     label:"shimmer",        token:"var(--shimmer-ease)",     value:"linear", usage:"--shimmer-ease — shimmer text sweep."},
+      {key:"custom",      label:"custom cubic-bezier", token:null, value:null, usage:"Hand-tuned cubic-bezier control points."},
+    ];
+    const readRootVar=(name)=>getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    const numFrom=(s,fb)=>{const n=parseFloat(s);return Number.isFinite(n)?n:fb;};
+    const stripWs=(s)=>(s||"").replace(/\s+/g,"");
+    // map a live ease value back onto a preset key (or "custom") + its cubic-bezier
+    const easeKeyFor=(val)=>{const v=stripWs(val);const p=EASE_PRESETS.find(p=>(p.value&&stripWs(p.value)===v)||(p.token&&stripWs(p.token)===v));return p?p.key:"custom";};
+    const bzFor=(val)=>{const m=(val||"").match(/cubic-bezier\(([^)]+)\)/);if(m){const a=m[1].split(",").map(Number);if(a.length===4&&a.every(Number.isFinite))return a;}return[0.22,1,0.36,1];};
+
+    function PcSlider({label,unit,value,min,max,step,onChange}){
+      return h("label",{className:"pc-row"},
+        h("span",{className:"pc-label"},label),
+        h("input",{type:"range",min,max,step:step||1,value,onChange:e=>onChange(Number(e.target.value))}),
+        h("span",{className:"pc-val"},value+unit));
+    }
+
+    function PcEase({label,easeKey,bz,onKey,onBz}){
+      return h(React.Fragment,null,
+        h("div",{className:"pc-select-row"},
+          h("span",{className:"pc-label"},label),
+          h("select",{value:easeKey,onChange:e=>onKey(e.target.value)},
+            EASE_PRESETS.map(p=>h("option",{key:p.key,value:p.key,title:p.usage},p.label)))),
+        easeKey==="custom"&&h("div",{className:"pc-bz"},
+          bz.map((v,i)=>h("input",{key:i,type:"number",step:0.01,value:v,
+            onChange:e=>onBz(i,Number(e.target.value))}))));
+    }
+
+    function PanelControls(){
+      const[openDur,setOpenDur]     =useState(()=>numFrom(readRootVar("--panel-open-dur"),400));
+      const[closeDur,setCloseDur]   =useState(()=>numFrom(readRootVar("--panel-close-dur"),350));
+      const[openDist,setOpenDist]   =useState(()=>numFrom(readRootVar("--panel-open-distance"),100));
+      const[closeDist,setCloseDist] =useState(()=>numFrom(readRootVar("--panel-close-distance"),100));
+      const[openScale,setOpenScale] =useState(()=>numFrom(readRootVar("--panel-scale"),0.96));
+      const[closeScale,setCloseScale]=useState(()=>numFrom(readRootVar("--panel-scale-close"),0.96));
+      const[blur,setBlur]           =useState(()=>numFrom(readRootVar("--panel-blur"),2));
+      const[openEaseKey,setOpenEaseKey]   =useState(()=>easeKeyFor(readRootVar("--panel-open-ease")));
+      const[openBz,setOpenBz]             =useState(()=>bzFor(readRootVar("--panel-open-ease")));
+      const[closeEaseKey,setCloseEaseKey] =useState(()=>easeKeyFor(readRootVar("--panel-close-ease")));
+      const[closeBz,setCloseBz]           =useState(()=>bzFor(readRootVar("--panel-close-ease")));
+
+      useEffect(()=>{document.documentElement.style.setProperty("--panel-open-dur",openDur+"ms");},[openDur]);
+      useEffect(()=>{document.documentElement.style.setProperty("--panel-close-dur",closeDur+"ms");},[closeDur]);
+      useEffect(()=>{document.documentElement.style.setProperty("--panel-open-distance",openDist+"px");},[openDist]);
+      useEffect(()=>{document.documentElement.style.setProperty("--panel-close-distance",closeDist+"px");},[closeDist]);
+      useEffect(()=>{document.documentElement.style.setProperty("--panel-scale",String(openScale));},[openScale]);
+      useEffect(()=>{document.documentElement.style.setProperty("--panel-scale-close",String(closeScale));},[closeScale]);
+      useEffect(()=>{document.documentElement.style.setProperty("--panel-blur",blur+"px");},[blur]);
+      useEffect(()=>{
+        const preset=EASE_PRESETS.find(p=>p.key===openEaseKey);
+        const val=openEaseKey==="custom"?`cubic-bezier(${openBz.join(", ")})`:(preset&&(preset.token||preset.value));
+        if(val)document.documentElement.style.setProperty("--panel-open-ease",val);
+      },[openEaseKey,openBz]);
+      useEffect(()=>{
+        const preset=EASE_PRESETS.find(p=>p.key===closeEaseKey);
+        const val=closeEaseKey==="custom"?`cubic-bezier(${closeBz.join(", ")})`:(preset&&(preset.token||preset.value));
+        if(val)document.documentElement.style.setProperty("--panel-close-ease",val);
+      },[closeEaseKey,closeBz]);
+
+      const setOpenBzAt=(i,v)=>setOpenBz(prev=>{const next=prev.slice();next[i]=v;return next;});
+      const setCloseBzAt=(i,v)=>setCloseBz(prev=>{const next=prev.slice();next[i]=v;return next;});
+      const fire=(action)=>window.dispatchEvent(new CustomEvent("tl-toggle-panel",{detail:{action}}));
+
+      return h("div",{className:"panel-controls"},
+        h("h3",null,h("span",{className:"pc-dot"}),"Panel transition"),
+        h("div",{className:"pc-group"},"Open"),
+        h(PcSlider,{label:"open dur",unit:"ms",value:openDur,min:0,max:1200,step:10,onChange:setOpenDur}),
+        h(PcSlider,{label:"distance",unit:"px",value:openDist,min:0,max:400,step:1,onChange:setOpenDist}),
+        h(PcSlider,{label:"scale",unit:"",value:openScale,min:0.80,max:1.00,step:0.01,onChange:setOpenScale}),
+        h(PcEase,{label:"ease",easeKey:openEaseKey,bz:openBz,onKey:setOpenEaseKey,onBz:setOpenBzAt}),
+        h("div",{className:"pc-group"},"Close"),
+        h(PcSlider,{label:"close dur",unit:"ms",value:closeDur,min:0,max:1200,step:10,onChange:setCloseDur}),
+        h(PcSlider,{label:"distance",unit:"px",value:closeDist,min:0,max:400,step:1,onChange:setCloseDist}),
+        h(PcSlider,{label:"scale",unit:"",value:closeScale,min:0.80,max:1.00,step:0.01,onChange:setCloseScale}),
+        h(PcEase,{label:"ease",easeKey:closeEaseKey,bz:closeBz,onKey:setCloseEaseKey,onBz:setCloseBzAt}),
+        h("div",{className:"pc-group"},"Shared"),
+        h(PcSlider,{label:"blur",unit:"px",value:blur,min:0,max:12,step:0.5,onChange:setBlur}),
+        h("div",{className:"pc-btns"},
+          h("button",{className:"pc-btn",onClick:()=>fire("toggle")},"Toggle panel"),
+          h("button",{className:"pc-btn primary",onClick:()=>fire("replay")},"Replay open")),
+      );
+    }
+
+    function App(){
+      const rootRef=useRef(null);const registry=useMemo(()=>new TransitionRegistry(),[]);const preview=useMemo(()=>new PreviewController(),[]);const[activeId,setActiveId]=useState(null);
+      useEffect(()=>{const root=rootRef.current??document.body;const scanner=new DomScanner(root,registry);preview.setScanner(scanner);scanner.start();return()=>{scanner.stop();preview.setScanner(null);};},[registry,preview]);
+      const ctx=useMemo(()=>({registry,preview,activeId,setActiveId}),[registry,preview,activeId]);
+      // Demo-only tweak controls: hidden by default. Append ?controls to the URL
+      // to show them for testing. (This whole block is below the inject CUT_MARKER,
+      // so it never ships in the injected build.)
+      const showControls=(()=>{try{return new URLSearchParams(location.search).has("controls");}catch(e){return false;}})();
+      return h(TimelineCtx.Provider,{value:ctx},
+        showControls&&h(PanelControls),
+        h("div",{ref:rootRef,className:"demo-root"},h("div",{className:"demo-header"},h("h1",null,"Timeline Inspector \u2014 Demo"),h("p",null,"CSS transitions are automatically detected. Select one below, drag the bars to edit timing, then Play.")),
+          h("div",{className:"demo-grid"},h(BoxResize),h(BoxOpacity),h(BoxSlide),h(BoxColor))),
+        h(TimelinePanel));
+    }
+
+    createRoot(document.getElementById("root")).render(h(App));
+  </script>
+</body>
+</html>

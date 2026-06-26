@@ -41,6 +41,23 @@ npm run build
 
 `build/extract.mjs` parses `PROTO_TEMPLATES` and the `:root { --pX-* }` block out of `index.html`, then re-renders every file under `skills/transitions-dev/` from the templates in `build/templates/`.
 
+## Refine tool
+
+**Refine** is a live, agent-driven companion to the skill. One command drops a timeline + Refine panel onto your running app — no `npm install`, no source edits of your own — and every "Refine" click asks your coding agent to align the selected CSS/Motion transition to the transitions.dev motion tokens (or replace it with a transition from the library). Suggestions appear in a panel that slides in from the right; you pick which to apply as live, reversible overrides.
+
+```bash
+# inject the panel + start the local relay (deterministic suggestions work immediately)
+npx transitions-refine live
+
+# same, but also installs/wires the Cursor CLI so the relay answers with the LLM, persistently
+npx transitions-refine live --llm
+
+# remove the injected <script> tag again
+npx transitions-refine stop
+```
+
+Without `--llm`, you can instead run `/refine live` in your editor to back the panel with the in-IDE agent. Source lives in [`refine/`](./refine) and ships as the public npm package `transitions-refine`. See [`refine/README.md`](./refine/README.md) for the full flow and env knobs.
+
 ## Files
 
 - `index.html` — main showcase page with all eighteen transitions and per-card "copy CSS" buttons.
@@ -48,6 +65,7 @@ npm run build
 - `skill.html` — landing page for the agent skill (install instructions + side-by-side compare embed).
 - `example.html` — modal demo with a side-by-side "generic AI output" vs "with Transitions.dev skill" toggle, embedded inside `skill.html` as an iframe.
 - `skills/transitions-dev/` — published skill payload (consumed by `npx skills add`).
+- `refine/` — the **Refine** tool: a CLI that injects a live timeline + Refine panel and runs a local relay (published to npm as `transitions-refine`).
 - `build/extract.mjs` + `build/templates/` — regenerator that keeps the skill in lockstep with `index.html`.
 - `assets/` — icons, favicons, and the social-share OG image.
 - `site.webmanifest`, `robots.txt`, `sitemap.xml` — PWA/SEO metadata.
