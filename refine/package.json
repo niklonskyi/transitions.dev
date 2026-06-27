@@ -1,6 +1,6 @@
 {
   "name": "transitions-refine",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Live, agent-driven Refine panel for CSS/Motion transitions — injects a timeline + Refine UI and runs transitions.dev suggestions via your coding agent.",
   "type": "module",
   "bin": {

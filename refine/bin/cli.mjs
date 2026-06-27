@@ -24,6 +24,13 @@ import { homedir } from "node:os";
 const PKG_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const CWD = process.cwd();
 const HOME = process.env.HOME || homedir();
+const PKG_VERSION = (() => {
+  try {
+    return JSON.parse(readFileSync(join(PKG_ROOT, "package.json"), "utf8")).version || "0";
+  } catch {
+    return "0";
+  }
+})();
 
 const MARK_START = "<!-- timeline-inject:start -->";
 const MARK_END = "<!-- timeline-inject:end -->";
@@ -81,14 +88,27 @@ function escapeRe(s) {
 
 // Copy a whole skill directory from the package into the user's project so the
 // in-IDE agent (/refine live) and any spawned cursor-agent can read it.
+//
+// Crucially this REFRESHES a stale copy on upgrade. An older installed skill can
+// shadow newer job handling — e.g. a pre-scan `refine-live` skill that doesn't
+// know how to answer kind:"scan" jobs, so scan jobs time out and the panel hangs
+// on "Agent is scanning…". We stamp the package version into the skill dir and
+// re-copy whenever it's missing or mismatched (so we don't clobber every run).
 function dropSkill(name) {
   const src = join(PKG_ROOT, ".agents/skills", name);
   const destDir = join(CWD, ".agents/skills", name);
   if (!existsSync(src)) return false;
-  if (existsSync(destDir)) return "exists";
+  const marker = join(destDir, ".refine-version");
+  const existed = existsSync(destDir);
+  if (existed) {
+    let installed = null;
+    try { installed = readFileSync(marker, "utf8").trim(); } catch {}
+    if (installed === PKG_VERSION) return "exists";
+  }
   mkdirSync(dirname(destDir), { recursive: true });
-  cpSync(src, destDir, { recursive: true });
-  return true;
+  cpSync(src, destDir, { recursive: true, force: true });
+  try { writeFileSync(marker, PKG_VERSION + "\n"); } catch {}
+  return existed ? "updated" : true;
 }
 
 // ── agent CLI (for the persistent LLM path) ──────────────────────────────────
@@ -162,7 +182,8 @@ function cmdLive(args) {
   for (const name of ["refine-live", "transitions-dev"]) {
     const r = dropSkill(name);
     if (r === true) log(`✓ added .agents/skills/${name}`);
-    else if (r === "exists") log(`✓ ${name} skill already present`);
+    else if (r === "updated") log(`✓ updated .agents/skills/${name} (now v${PKG_VERSION})`);
+    else if (r === "exists") log(`✓ ${name} skill already present (v${PKG_VERSION})`);
   }
 
   // 2.5) ensure an agent CLI so the relay can answer LLM jobs itself — this is

@@ -1085,8 +1085,20 @@
     .tl-gate-beam-fill { display: block; width: 100%; height: 100%; border-radius: 36px; background: #fff; }
     .tl-gate-sub { margin: 16px 0 0; max-width: 244px; font-size: 12px; font-weight: 400; line-height: 14px;
       color: #6f6f6f; text-wrap: pretty; }
+    /* recovery actions when a scan errored/timed out — never trap the panel */
+    .tl-gate-actions { display: flex; align-items: center; gap: 8px; margin: 18px 0 0; }
+    .tl-gate-btn { height: 32px; padding: 0 14px; border: 0; border-radius: 60px; cursor: pointer;
+      font: 500 12px/14px inherit; color: #2c2c2c; background: #f3f3f3; white-space: nowrap;
+      box-shadow: 0 1px 3px 0 rgba(0,0,0,0.04), inset 0 0 0 1px rgba(0,0,0,0.06), inset 0 -1px 0 0 rgba(0,0,0,0.10);
+      transition: background 140ms cubic-bezier(0.4,0,0.2,1); }
+    .tl-gate-btn:hover { background: #ececec; }
+    .tl-gate-btn:active { background: #e6e6e6; }
+    .tl-gate-btn-primary { color: #fff; background: #0a84ff;
+      box-shadow: 0 0 0 1px rgba(0,101,208,0.10) inset, 0 -1px 0 0 rgba(3,66,142,0.15) inset, 0 1px 3px 0 rgba(4,41,117,0.08); }
+    .tl-gate-btn-primary:hover { background: #0a78e6; }
     @media (prefers-reduced-motion: reduce) {
-      .tl-gate, .tl-gate-pill-wrap .tl-gate-beam { animation: none !important; } }
+      .tl-gate, .tl-gate-pill-wrap .tl-gate-beam { animation: none !important; }
+      .tl-gate-btn { transition: none !important; } }
     /* dot-matrix loader — ported from @dotmatrix/dotm-square-14
        (github.com/zzzzshawn/matrix, MIT). A 5×5 dot grid cross-fades through four
        frame masks in the sequence 0→1→2→3→2→1, dot opacities x=1 / o=0.52 / .=0.08.
@@ -2718,6 +2730,9 @@
       const[acceptError,setAcceptError]=useState(null);
       // ── grouped scan (agent reads source → Open/Close phases) ──
       const[groupScanState,setGroupScanState]=useState("idle"); // idle | scanning | done | error
+      // Escape hatch for the gate: if a scan errors/times out the user can choose
+      // to proceed with the flat (ungrouped) list instead of being trapped.
+      const[skipGrouping,setSkipGrouping]=useState(false);
       const didGroupScanRef=useRef(false);
       const[refineLabel,setRefineLabel]=useState(null);
       const[appliedIds,setAppliedIds]=useState({});
@@ -3010,6 +3025,7 @@
       const rescanTransitions=useCallback(()=>{
         try{localStorage.removeItem(GROUP_STORE_KEY);}catch{}
         registry.clearGroups();
+        setSkipGrouping(false); // re-engage the gate so a fresh scan can be shown
         runGroupScan();
       },[runGroupScan,GROUP_STORE_KEY,registry]);
       // Gate the auto group-scan behind a live agent: the panel stays on the
@@ -3067,13 +3083,19 @@
 
       // gate: the panel is unusable until a live agent is connected AND it has
       // scanned the page's transitions.
-      //   loading  → first /health probe pending (blank, avoids a text flash)
-      //   blocked  → no live agent → "Before we start" (run /refine live)
-      //   scanning → live agent, scan in flight → "Agent is scanning…"
-      //   ready    → live + scan done → the real timeline UI
+      //   loading    → first /health probe pending (blank, avoids a text flash)
+      //   blocked    → no live agent → "Before we start" (run /refine live)
+      //   scanning   → live agent, scan in flight → "Agent is scanning…"
+      //   scan-error → scan failed/timed out → recoverable (retry / continue)
+      //   ready      → live + scan settled (done or idle, or user skipped) → real UI
+      // NOTE: "idle" and "error" must NOT keep us on the scanning screen, or a
+      // timed-out scan (e.g. an older /refine-live skill that can't answer scan
+      // jobs) would trap the panel forever with no way out.
       const gate = !live
         ? (llmAvailable===null ? "loading" : "blocked")
-        : (groupScanState==="done" ? "ready" : "scanning");
+        : groupScanState==="scanning" ? "scanning"
+        : (groupScanState==="error" && !skipGrouping) ? "scan-error"
+        : "ready";
       return h(React.Fragment,null,
         render&&h("div",{className:"t-panel-slide","data-timeline-panel":true,
             "data-open":panelOpen?"true":"false","data-phase":phase,style:{height:panelHeight+"px"}},
@@ -3109,7 +3131,16 @@
                         h("span",{className:"tl-gate-pill"},
                           h(DotmLoader),
                           h("span",{className:"tl-gate-pill-label"},"Agent is scanning your transitions"))),
-                      h("p",{className:"tl-gate-sub"},"Just a moment while we get things ready.")))),
+                      h("p",{className:"tl-gate-sub"},"Just a moment while we get things ready."))),
+                  gate==="scan-error" && h("div",{className:"tl-gate"},
+                    h("div",{className:"tl-gate-col"},
+                      h("div",{className:"tl-gate-title"},"We couldn’t scan your transitions"),
+                      h("p",{className:"tl-gate-text"},
+                        "The agent didn’t finish grouping. Make sure ",h("code",{className:"tl-code"},"/refine live"),
+                        " is running with the latest skill, then try again — or continue with the ungrouped list."),
+                      h("div",{className:"tl-gate-actions"},
+                        h("button",{className:"tl-gate-btn tl-gate-btn-primary",onClick:rescanTransitions},"Try again"),
+                        h("button",{className:"tl-gate-btn",onClick:()=>setSkipGrouping(true)},"Continue without grouping"))))),
             toast&&createPortal(
               h("div",{className:"tl-toast-wrap","aria-live":"polite"},
                 h("div",{className:cx("tl-toast",toast.closing&&"is-closing")},
