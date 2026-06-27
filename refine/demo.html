@@ -346,7 +346,7 @@
     .tl-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
     .tl-inspector { flex: 0 0 280px; padding: 14px 16px 18px; display: flex; flex-direction: column;
       border-left: 1px solid var(--c-line); min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-    .tl-insp-title { font-size: 13px; font-weight: 500; line-height: 18px; color: #171717; margin-bottom: 12px; text-transform: capitalize; }
+    .tl-insp-title { font-size: 13px; font-weight: 500; line-height: 18px; color: #171717; margin-bottom: 10px; text-transform: capitalize; }
     .tl-insp-label { font-size: 12px; line-height: 18px; color: #737373; margin: 10px 0 6px; }
 
     /* ── tracks / ruler ── */
@@ -1076,23 +1076,32 @@
     function easingToCubic(v) { const p=kwMap.get(v); if(p)return p.cubic; const m=v.match(/cubic-bezier\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/); if(m)return[parseFloat(m[1]),parseFloat(m[2]),parseFloat(m[3]),parseFloat(m[4])]; return null; }
 
     // Easing dropdown library. `group` rows are non-selectable section headers.
-    // Motion tokens are the verbatim cubic-beziers shipped by the transitions.dev
-    // skill (_root.css); the "Common" set are the standard easings.net curves.
+    // The "Motion tokens (transitions.dev)" set is verbatim from the transitions.dev
+    // skill's Easings table (name, value and usage all match the skill); the
+    // "Standard" set is the five native CSS timing-function keywords.
     const EASING_LIBRARY = [
       { group:"Motion tokens (transitions.dev)" },
-      { label:"Smooth out", value:"cubic-bezier(0.22, 1, 0.36, 1)", usage:"The transitions.dev default — dropdown, modal, panel, tabs, page slides, accordion." },
-      { label:"Standard close", value:"cubic-bezier(0.4, 0, 0.2, 1)", usage:"Material-style accelerate→decelerate. Used for badge close / calm exits." },
-      { label:"Pop overshoot", value:"cubic-bezier(0.34, 1.36, 0.64, 1)", usage:"Notification badge pop-in — a small overshoot past the target." },
-      { label:"Digit pop", value:"cubic-bezier(0.34, 1.45, 0.64, 1)", usage:"Number pop-in — slightly springier overshoot for counting digits." },
-      { label:"Morph open", value:"cubic-bezier(0.34, 1.25, 0.64, 1)", usage:"Plus-to-menu morph open — gentle bouncy expand." },
-      { label:"Check bob", value:"cubic-bezier(0.34, 1.35, 0.64, 1)", usage:"Success check bob — playful settle on confirmation." },
-      { label:"Big overshoot", value:"cubic-bezier(0.34, 3.85, 0.64, 1)", usage:"Avatar group hover return — aggressive, spring-like overshoot." },
+      { label:"Smooth ease out", value:"cubic-bezier(0.22, 1, 0.36, 1)", usage:"Modal / dropdown / panel open + close, page slide, resize, position change." },
+      { label:"Ease in out", value:"ease-in-out", usage:"Icon swap, text swap, text reveal, skeleton reveal." },
+      { label:"Ease out", value:"ease-out", usage:"Tooltip open / close." },
+      { label:"Linear", value:"linear", usage:"Shimmer, skeleton pulse, spinner." },
+      { label:"Bouncy overshoot", value:"cubic-bezier(0.34, 1.36, 0.64, 1)", usage:"Badge pop open — a small overshoot past the target." },
+      { label:"Strong bouncy overshoot", value:"cubic-bezier(0.34, 3.85, 0.64, 1)", usage:"Bouncy hover-out (avatar return) — aggressive, spring-like overshoot." },
+      { group:"Standard" },
+      { label:"ease", value:"ease", usage:"CSS default — gentle ease in, ease out." },
+      { label:"ease-in", value:"ease-in", usage:"Accelerate from rest — slow start, fast finish." },
+      { label:"ease-out", value:"ease-out", usage:"Decelerate to rest — fast start, slow finish." },
+      { label:"ease-in-out", value:"ease-in-out", usage:"Accelerate then decelerate — symmetric." },
+      { label:"linear", value:"linear", usage:"Constant speed — no acceleration." },
       { group:"Custom" },
       { label:"cubic-bezier(\u2026)", value:"__cubic" },
       { label:"custom", value:"__custom" },
     ];
     const normEase = s => (s||"").replace(/\s+/g,"");
-    const EASING_LABEL = new Map(EASING_LIBRARY.filter(o=>o.value&&o.value[0]!=="_").map(o=>[normEase(o.value),o.label]));
+    // First occurrence wins, so a shared keyword (e.g. ease-out) shows its
+    // semantic transitions.dev name rather than the bare Standard keyword.
+    const EASING_LABEL = EASING_LIBRARY.filter(o=>o.value&&o.value[0]!=="_")
+      .reduce((m,o)=>{const k=normEase(o.value);if(!m.has(k))m.set(k,o.label);return m;},new Map());
     function easingLabel(v){ return EASING_LABEL.get(normEase(v)) || null; }
 
     // Most-common predefined springs. tension/friction follow react-spring's
@@ -1943,6 +1952,9 @@
       const easeRef = useRef(null);
       const [easeOpen, setEaseOpen] = useState(false);
       const selLabel = easingLabel(easing) || (isCubic ? "cubic-bezier(\u2026)" : easing ? easing : "custom");
+      // first selectable row whose value matches — so a keyword shared between the
+      // transitions.dev and Standard groups only checks once (the first one).
+      const selEaseIdx = EASING_LIBRARY.findIndex(o=>o.value&&o.value[0]!=="_"&&normEase(o.value)===normEase(easing));
       const pickEase = useCallback(v=>{
         if(v==="__cubic") setEasing(`cubic-bezier(${cb.join(", ")})`);
         else if(v==="__custom") setEasing("");
@@ -1996,9 +2008,9 @@
           width:Math.max(248,(easeRef.current&&easeRef.current.offsetWidth)||248),align:"left"},
           EASING_LIBRARY.map((o,i)=> o.group
             ? h("div",{key:"g"+i,className:"tl-menu-group"},o.group)
-            : h(MenuItem,{key:o.value,active:normEase(o.value)===normEase(easing)||(o.value===mode),
+            : h(MenuItem,{key:"e"+i,active:selEaseIdx>=0?i===selEaseIdx:(o.value===mode),
                 onClick:()=>pickEase(o.value),
-                right:(normEase(o.value)===normEase(easing))&&h("span",{className:"tl-menu-check"},h(Ic,{name:"check"}))},
+                right:(i===selEaseIdx)&&h("span",{className:"tl-menu-check"},h(Ic,{name:"check"}))},
                 h("span",{className:"tl-menu-text"},o.label),
                 o.usage&&h("span",{className:"t-tt-wrap tl-menu-help",
                     onClick:e=>e.stopPropagation(),onMouseDown:e=>e.stopPropagation()},
