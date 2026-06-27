@@ -1278,7 +1278,7 @@
     // (inject.js), the build injects window.__TX_REFINE_VERSION from package.json so
     // it never drifts; the fallback mirrors the current package.json version for the
     // standalone demo.html.
-    const REFINE_VERSION = (typeof window !== "undefined" && window.__TX_REFINE_VERSION) || "0.3.4";
+    const REFINE_VERSION = (typeof window !== "undefined" && window.__TX_REFINE_VERSION) || "0.3.5";
 
     // ── helpers ──
     function parseCssTime(v) { const t=v.trim(); if(t.endsWith("ms")) return parseFloat(t); if(t.endsWith("s")) return parseFloat(t)*1000; const n=parseFloat(t); return isNaN(n)?0:n; }
