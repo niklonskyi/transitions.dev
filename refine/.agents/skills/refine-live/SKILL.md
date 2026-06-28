@@ -197,18 +197,33 @@ separately. You fix that by reading the source. The request looks like:
     "raw": [
       { "label": "div.dropdown-panel", "selector": ".dropdown-panel",
         "properties": ["opacity","transform"],
-        "timings": [{ "property": "opacity", "durationMs": 200, "delayMs": 0, "easing": "ease-out" }] }
+        "timings": [{ "property": "opacity", "durationMs": 200, "delayMs": 0, "easing": "ease-out" }],
+        "cssRules": [
+          ".dropdown .dropdown-panel { opacity: 0; transition: opacity 200ms ease-out 0ms, transform 200ms cubic-bezier(0.22, 1, 0.36, 1) 0ms; }",
+          ".dropdown.is-open .dropdown-panel { opacity: 1; transform: translateY(0); }",
+          ".dropdown.is-closing .dropdown-panel { transition: opacity 150ms ease-in 0ms; opacity: 0; }"
+        ] }
     ]
   }
 }
 ```
 
 **Be fast.** The `raw.timings` are already accurate for each element's *current*
-on-screen state — treat them as ground truth and reuse them verbatim. Read as
-little source as you need: only to (a) group elements into components, (b)
-recover the *opposite* phase (e.g. close) that isn't in the DOM right now, and
-(c) find the toggled state. Don't open files just to re-read timings you were
-already given.
+on-screen state — treat them as ground truth and reuse them verbatim. Most `raw`
+entries also carry **`cssRules`**: the CSS rules harvested live from the page
+(CSSOM) that drive that element across *all* states (base + open + close), with
+`var()` already resolved to concrete values.
+
+**Fast path — prefer `cssRules` over the filesystem.** When an entry has
+`cssRules`, they are authoritative and contain everything you need: the opposite
+phase's timings live on a state-variant selector inside them (e.g.
+`.dd.is-closing .dd-panel`, `.modal[data-closing] .dialog`), and the toggled
+state is visible in those selectors. Derive grouping, phases, toggled state, and
+opposite-phase timings **directly from `cssRules` + `timings`** — do **not**
+glob/grep/read files for any element whose `cssRules` is non-empty; it only
+wastes time. Only fall back to reading source for entries with an empty/missing
+`cssRules` (CORS-locked sheets, styled-components, Tailwind, etc.), and even then
+read the minimum.
 
 Do this:
 
@@ -220,14 +235,16 @@ Do this:
 2. **Split each component into phases** — usually `open` and `close` (a hover-only
    component can be a single phase). The phase matching the current DOM reuses the
    provided timings; the *opposite* phase often lives on a different selector
-   (`.is-open` vs `.is-closing`) with different timings — read source for that one.
-   Report **both** even though only one is in the DOM right now.
+   (`.is-open` vs `.is-closing`) with different timings — take it from the entry's
+   `cssRules` (or, only if it has none, read source). Report **both** even though
+   only one is in the DOM right now.
 3. **List each phase's members** — the elements that animate in that phase. Give
    each a stable `id`, a human `label`, a live-resolvable CSS `selector`, an
    optional `toState` hint (the class/attribute that drives the phase, e.g.
    `.is-open`), and its `propertyTimings`. For the current-state phase, **copy the
    provided `raw.timings` verbatim**; for the opposite phase, **quote the real
-   timings from source — never invent.**
+   timings from the entry's `cssRules`** (already var()-resolved) — or from source
+   if it has none — **never invent.**
 4. **Post the groups** (this completes the job):
 
    ```bash

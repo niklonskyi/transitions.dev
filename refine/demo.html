@@ -440,7 +440,9 @@
     /* ── value field (slider + input) — exact Figma "Value slider and input" ── */
     .tl-field-wrap { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
     .tl-field { position: relative; flex: 1; min-width: 0; height: 32px; border-radius: 8px;
-      background: var(--c-field-bg); transition: box-shadow 0.12s ease; }
+      background: var(--c-field-bg); transition: box-shadow 0.12s ease, background 0.12s ease; }
+    /* match the chevron stepper's hover wash so the whole field reads as one control */
+    .tl-field:hover:not(.is-editing) { background: var(--c-sec-h); }
     /* focused: dual inset ring (Figma Focused state) */
     .tl-field.is-editing { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.06); }
     /* inner slider fill — Figma button/tiny: soft drop shadow + inset ring give the
@@ -520,8 +522,8 @@
       border: none; border-radius: 8px; background: #f7f7f7; padding: 6px 10px 6px 12px;
       font: inherit; font-size: 13px; font-weight: 500; line-height: 16px; color: #1b1b1b; cursor: pointer; text-align: left;
       transition: background 0.12s ease; }
-    .tl-select:hover { background: rgba(170,170,170,0.2); }
-    .tl-select.is-open { background: rgba(170,170,170,0.2); }
+    .tl-select:hover { background: var(--c-sec-h); }
+    .tl-select.is-open { background: var(--c-sec-h); }
     .tl-select:disabled { opacity: 0.5; cursor: default; }
     .tl-select-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tl-select-chev { display: flex; color: var(--c-ruler); flex: none; }
@@ -590,6 +592,27 @@
       transition: color 0.12s ease; }
     .tl-preview-play:hover { color: #171717; }
     .tl-preview-play:active { color: var(--c-blue); }
+    /* Play ⟷ Pause: cross-blur text swap — same mechanism as the index
+       Copy code → Copied tooltip. Both words stack in one slot; the active
+       one is sharp/opaque, the other blurred/transparent, and they cross-blur
+       in place while the slot width tweens between the two measured widths. */
+    .tl-play-swap { position: relative; display: inline-block; vertical-align: baseline;
+      line-height: 18px; width: var(--pw-a, auto);
+      transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1); }
+    .tl-play-swap[data-state="pause"] { width: var(--pw-b, auto); }
+    .tl-play-label { white-space: pre;
+      transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1),
+                  filter 180ms cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: opacity, filter; }
+    .tl-play-a { display: inline-block; }
+    .tl-play-b { position: absolute; top: 0; left: 0; }
+    .tl-play-swap .tl-play-a { opacity: 1; filter: blur(0); }
+    .tl-play-swap .tl-play-b { opacity: 0; filter: blur(2px); }
+    .tl-play-swap[data-state="pause"] .tl-play-a { opacity: 0; filter: blur(2px); }
+    .tl-play-swap[data-state="pause"] .tl-play-b { opacity: 1; filter: blur(0); }
+    @media (prefers-reduced-motion: reduce) {
+      .tl-play-swap, .tl-play-label { transition: none !important; }
+    }
     /* position-preview track — Figma 580:9117: dot + dashed rail inside a
        #f6f6f7 rounded card (58px tall, 21px horizontal inset for the dot) */
     .tl-preview-track { height: 58px; background: #f6f6f7; border-radius: 8px;
@@ -660,6 +683,8 @@
     .tl-menu-item.disabled { color: var(--c-disabled); pointer-events: none; }
     .tl-menu-item-label { flex: 1; min-width: 0; display: flex; align-items: center; }
     .tl-menu-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tl-menu-stack { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .tl-menu-sub { font-size: 11px; line-height: 14px; }
     .tl-menu-dim { color: #979797; }
     .tl-menu-check { display: flex; color: var(--c-text-strong); flex: none; }
     .tl-menu-empty { padding: 10px 8px; color: var(--c-disabled); font-size: 13px; }
@@ -1029,7 +1054,7 @@
        label and the icon+status; whichever is hidden fades out with blur+scale.
        overflow:hidden + nowrap keep the status copy on a single line while the
        box is still narrow mid-morph. */
-    .tl-scan-content { position: relative; z-index: 1; display: grid; width: 100%; height: 100%;
+    .tl-scan-content { position: relative; z-index: 4; display: grid; width: 100%; height: 100%;
       min-width: 0; overflow: hidden; }
     .tl-scan-face { grid-area: 1 / 1; display: flex; align-items: center; gap: 8px;
       min-width: 0; white-space: nowrap;
@@ -1051,8 +1076,14 @@
        position:relative on its [data-beam] container (and it lands later in the
        DOM, so it would win at equal specificity). Raise specificity here so the
        beam stays an absolute overlay filling the button instead of collapsing
-       into flow as a flex sibling (which hid the beam and skewed the width). */
-    .tl-scan-morph .tl-scan-beam { position: absolute; inset: 0; z-index: 0;
+       into flow as a flex sibling (which hid the beam and skewed the width).
+       z-index:3 lifts the beam ABOVE the box's 1px hairline (the .is-scanning
+       ::after `inset 0 0 0 1px` ring at z-index:2). The beam's own stroke is a
+       1px ring at inset 0 with the same radius, so its travelling light now lands
+       pixel-for-pixel ON the hairline instead of being occluded by it — leaving
+       only the diffuse bloom (which read as a thick, offset border). The face
+       content sits at z-index:4 so the glow never washes over the label/status. */
+    .tl-scan-morph .tl-scan-beam { position: absolute; inset: 0; z-index: 3;
       border-radius: inherit; pointer-events: none;
       animation: tl-fade-in 360ms var(--resize-ease) both; }
     /* Beam radius is auto-detected from this fill child; inherit keeps it locked
@@ -1072,33 +1103,8 @@
     .tl-gate-text { margin: 4px 0 0; max-width: 250px; font-size: 13px; font-weight: 400; line-height: 21px;
       color: #676767; text-wrap: pretty; }
     .tl-gate-text .tl-code { color: #4b4b4b; }
-    /* "Agent is scanning your transitions" — pill with dot-matrix loader + a
-       line-style border beam tracing the capsule edge, with a subtext below. */
-    .tl-gate-pill-wrap { position: relative; }
-    .tl-gate-pill { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px;
-      height: 36px; padding: 6px 12px; border-radius: 36px; background: #fff; color: #17181c;
-      font-size: 13px; font-weight: 400; line-height: 14px; white-space: nowrap;
-      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(196,196,196,0.10); }
-    .tl-gate-pill .tl-dotm { color: #17181c; }
-    .tl-gate-pill-wrap .tl-gate-beam { position: absolute; inset: 0; z-index: 0; border-radius: 36px;
-      pointer-events: none; animation: tl-fade-in 360ms var(--resize-ease, cubic-bezier(0.22,1,0.36,1)) both; }
-    .tl-gate-beam-fill { display: block; width: 100%; height: 100%; border-radius: 36px; background: #fff; }
-    .tl-gate-sub { margin: 16px 0 0; max-width: 244px; font-size: 12px; font-weight: 400; line-height: 14px;
-      color: #6f6f6f; text-wrap: pretty; }
-    /* recovery actions when a scan errored/timed out — never trap the panel */
-    .tl-gate-actions { display: flex; align-items: center; gap: 8px; margin: 18px 0 0; }
-    .tl-gate-btn { height: 32px; padding: 0 14px; border: 0; border-radius: 60px; cursor: pointer;
-      font: 500 12px/14px inherit; color: #2c2c2c; background: #f3f3f3; white-space: nowrap;
-      box-shadow: 0 1px 3px 0 rgba(0,0,0,0.04), inset 0 0 0 1px rgba(0,0,0,0.06), inset 0 -1px 0 0 rgba(0,0,0,0.10);
-      transition: background 140ms cubic-bezier(0.4,0,0.2,1); }
-    .tl-gate-btn:hover { background: #ececec; }
-    .tl-gate-btn:active { background: #e6e6e6; }
-    .tl-gate-btn-primary { color: #fff; background: #0a84ff;
-      box-shadow: 0 0 0 1px rgba(0,101,208,0.10) inset, 0 -1px 0 0 rgba(3,66,142,0.15) inset, 0 1px 3px 0 rgba(4,41,117,0.08); }
-    .tl-gate-btn-primary:hover { background: #0a78e6; }
     @media (prefers-reduced-motion: reduce) {
-      .tl-gate, .tl-gate-pill-wrap .tl-gate-beam { animation: none !important; }
-      .tl-gate-btn { transition: none !important; } }
+      .tl-gate { animation: none !important; } }
     /* dot-matrix loader — ported from @dotmatrix/dotm-square-14
        (github.com/zzzzshawn/matrix, MIT). A 5×5 dot grid cross-fades through four
        frame masks in the sequence 0→1→2→3→2→1, dot opacities x=1 / o=0.52 / .=0.08.
@@ -1125,7 +1131,10 @@
     @keyframes tl-dotm-e { 0%{opacity:1} 16.667%{opacity:.52} 33.333%{opacity:.08} 50%{opacity:.52} 66.667%{opacity:.08} 83.333%{opacity:.52} 100%{opacity:1} }
     @keyframes tl-dotm-f { 0%{opacity:.08} 16.667%{opacity:1} 33.333%{opacity:.52} 50%{opacity:.08} 66.667%{opacity:.52} 83.333%{opacity:1} 100%{opacity:.08} }
     @keyframes tl-dotm-g { 0%{opacity:.08} 16.667%{opacity:.52} 33.333%{opacity:.08} 50%{opacity:.08} 66.667%{opacity:.08} 83.333%{opacity:.52} 100%{opacity:.08} }
-    .tl-scanning-row { display: inline-flex; align-items: center; gap: 6px; }
+    /* background-scan note in the header count slot — plain text, hover for the
+       tooltip explaining what the agent is doing. Dotted underline hints it. */
+    .tl-scan-note { cursor: help; color: var(--c-count);
+      text-decoration: underline dotted rgba(0,0,0,0.28); text-underline-offset: 2px; }
     /* loading status text — transitions.dev shimmer text (15) + text states swap (04) */
     .tl-refine-status-text {
       --shimmer-dur: 2000ms; --shimmer-base: #9a9a9a; --shimmer-highlight: #17181c;
@@ -1208,33 +1217,43 @@
     /* applied state — GRAY, never green (matches Accept icon --c-text #17181c) */
     .tl-pill-btn.is-applied { color: var(--c-text); cursor: default; }
     .tl-pill-btn.is-applied svg path { stroke: var(--c-text); }
-    /* card resize (transitions.dev 01-card-resize): width tween on Apply -> Applied.
-       250ms cubic-bezier(0.22,1,0.36,1); width is driven explicitly from JS. */
-    .tl-pill-btn.tl-apply-btn {
-      transition: background 0.12s ease, scale 0.12s ease, opacity 0.12s ease,
-                  width 250ms cubic-bezier(0.22, 1, 0.36, 1);
-      will-change: width; }
-    /* success check (transitions.dev 10-success-check): fade + rotate + Y-bob +
-       blur on the wrapper, stroke-draw on the path. GRAY stroke. */
-    .tl-sug-check { display: inline-flex; transform-origin: center; opacity: 0;
-      will-change: transform, opacity, filter; }
+    /* Apply ⟷ Applied: cross-blur text swap — same mechanism as the Play/Pause
+       button above (and the index Copy → Copied tooltip). Both words stack in one
+       slot; the active one is sharp/opaque, the other blurred/transparent, and they
+       cross-blur in place while the slot width tweens between the two measured widths.
+       The "Applied" label (b) carries the success check to the left of its text. */
+    .tl-apply-swap { position: relative; display: inline-block; vertical-align: middle;
+      line-height: 14px; width: var(--aw-a, auto);
+      transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1); }
+    .tl-apply-swap[data-state="applied"] { width: var(--aw-b, auto); }
+    .tl-apply-label { white-space: pre;
+      transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1),
+                  filter 180ms cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: opacity, filter; }
+    .tl-apply-a { display: inline-block; }
+    .tl-apply-b { position: absolute; top: 0; left: 0; display: inline-flex;
+      align-items: center; gap: 6px; }
+    .tl-apply-swap .tl-apply-a { opacity: 1; filter: blur(0); }
+    .tl-apply-swap .tl-apply-b { opacity: 0; filter: blur(2px); }
+    .tl-apply-swap[data-state="applied"] .tl-apply-a { opacity: 0; filter: blur(2px); }
+    .tl-apply-swap[data-state="applied"] .tl-apply-b { opacity: 1; filter: blur(0); }
+    @media (prefers-reduced-motion: reduce) {
+      .tl-apply-swap, .tl-apply-label { transition: none !important; }
+    }
+    /* success check (transitions.dev 10-success-check): stroke-draw on the path with
+       a plain opacity fade — IN PLACE, no rotate / Y-bob / scale, so the check never
+       moves while it draws. GRAY stroke. */
+    .tl-sug-check { display: inline-flex; opacity: 0; will-change: opacity; }
     .tl-sug-check svg { display: block; overflow: visible; }
     /* stroke-dasharray = path.getTotalLength() of ICONS.accept "M4 8.4268 L6.46155
        11.19223 L12 4.97001" (~12.03 user units, rounded up to 13). JS also sets it
        inline per-render via getTotalLength() for sub-pixel safety. */
     .tl-sug-check svg path { stroke-dasharray: 13; stroke-dashoffset: 13; }
     .tl-sug-check[data-state="in"] {
-      animation:
-        tl-check-fade   500ms cubic-bezier(0.22, 1, 0.36, 1)   forwards,
-        tl-check-rotate 500ms cubic-bezier(0.22, 1, 0.36, 1)   forwards,
-        tl-check-blur   500ms cubic-bezier(0.22, 1, 0.36, 1)   forwards,
-        tl-check-bob    500ms cubic-bezier(0.34, 1.35, 0.64, 1) forwards; }
+      animation: tl-check-fade 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
     .tl-sug-check[data-state="in"] svg path {
       animation: tl-check-draw 500ms cubic-bezier(0.22, 1, 0.36, 1) 80ms forwards; }
     @keyframes tl-check-fade   { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes tl-check-rotate { from { transform: rotate(80deg); } to { transform: rotate(0deg); } }
-    @keyframes tl-check-blur   { from { filter: blur(10px); } to { filter: blur(0); } }
-    @keyframes tl-check-bob    { from { translate: 0 40px; } to { translate: 0 0; } }
     @keyframes tl-check-draw   { to { stroke-dashoffset: 0; } }
     /* results action bar (Figma node 581:6285): white sticky bar with top hairline
        holding two equal-width pill buttons (Apply all + Scan again). */
@@ -1536,6 +1555,59 @@
       _sel(el){if(el.id)return"#"+el.id;const p=[];let c=el,d=0;while(c&&d<3){let s=c.tagName.toLowerCase();if(c.id){p.unshift("#"+c.id);break;}if(c.className&&typeof c.className==="string"){const cls=c.className.trim().split(/\s+/)[0];if(cls)s+="."+cls;}p.unshift(s);c=c.parentElement;d++;}return p.join(" > ");}
     }
 
+    // ── CSSOM hint harvest ──
+    // The scan's slowest part isn't reasoning — it's the agent NOT knowing where
+    // the source lives, so it globs the whole tree, greps, and wanders into wrong
+    // files (this explodes on real/large repos). We sidestep that: for each
+    // detected element we pull the CSS rules that drive it across ALL states
+    // (base + open + close) straight from the live stylesheets via CSSOM, resolve
+    // var() to concrete values, and hand them to the agent inline. With these the
+    // agent groups + recovers the opposite phase from the payload alone and never
+    // touches the filesystem. Falls back to source-reading when empty (CORS-locked
+    // sheets, styled-components/Tailwind, etc.).
+    const HINT_MAX_RULES = 16;       // per element — base + a few state variants
+    const HINT_MAX_RULE_LEN = 600;   // chars per rule, trimmed
+    function harvestCssHints(entry){
+      try{
+        const refs=(entry.bindings&&entry.bindings.elements)||[];
+        let el=null;
+        for(const r of refs){const e=r&&r.deref&&r.deref();if(e){el=e;break;}}
+        if(!el)return [];
+        // Own classes are the precise anchor: every state variant that targets
+        // this element (`.dd.is-open .dd-panel`, `.dd[data-open] .dd-panel`) still
+        // names the element's own leaf class, so matching on it scopes tightly to
+        // this component without dragging in unrelated utility-class rules.
+        const own=(typeof el.className==="string"?el.className.trim().split(/\s+/):Array.from(el.classList||[])).filter(Boolean);
+        if(!own.length)return [];
+        const esc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+        const tokRes=own.map(c=>new RegExp("\\."+esc(c)+"(?![\\w-])"));
+        const matchTok=sel=>tokRes.some(re=>re.test(sel));
+        const cs=getComputedStyle(el);
+        const resolveVars=txt=>txt.replace(/var\(\s*(--[\w-]+)\s*(?:,[^()]*)?\)/g,(m,v)=>{const r=cs.getPropertyValue(v).trim();return r||m;});
+        const out=[];const seen=new Set();
+        const collect=list=>{
+          for(const rule of Array.from(list||[])){
+            if(out.length>=HINT_MAX_RULES)return;
+            // @media / @supports etc. — recurse into nested rules.
+            if(rule.cssRules&&rule.selectorText===undefined){collect(rule.cssRules);continue;}
+            const sel=rule.selectorText;
+            if(!sel||!matchTok(sel))continue;
+            let txt=rule.cssText;if(!txt)continue;
+            txt=resolveVars(txt).replace(/\s+/g," ").trim();
+            if(txt.length>HINT_MAX_RULE_LEN)txt=txt.slice(0,HINT_MAX_RULE_LEN)+" …}";
+            if(seen.has(txt))continue;seen.add(txt);
+            out.push(txt);
+          }
+        };
+        for(const sheet of Array.from(document.styleSheets||[])){
+          if(out.length>=HINT_MAX_RULES)break;
+          let rules;try{rules=sheet.cssRules;}catch{continue;} // cross-origin → skip
+          collect(rules);
+        }
+        return out;
+      }catch{return [];}
+    }
+
     // ── hooks ──
     const TimelineCtx = createContext(null);
     function useReg(){const{registry}=useContext(TimelineCtx);return useSyncExternalStore(useCallback(cb=>registry.subscribe(cb),[registry]),useCallback(()=>registry.getAll(),[registry]),useCallback(()=>registry.getAll(),[registry]));}
@@ -1753,51 +1825,62 @@
       const names=[...new Set(matches.map(t=>t.member))];
       return names.length===1?names[0]:matches[0].member;
     }
-    // Apply button — card resize (transitions.dev 01) tweens the width on
-    // Apply -> Applied, and the gray checkmark plays the success check (10):
-    // fade + rotate + Y-bob + blur on the wrapper, stroke-draw on the path.
-    // The same <button> node is reused across states so width can tween.
+    // Apply button — "Apply" ⟷ "Applied" cross-blur text swap (transitions.dev 04,
+    // same mechanism as the Play/Pause button): both labels stack in one slot, the
+    // active one is sharp/opaque and the other blurred/transparent, and the slot
+    // width tweens between the two measured widths (--aw-a -> --aw-b). The gray
+    // checkmark draws its stroke path IN PLACE (transitions.dev 10, no rotate/bob/
+    // scale) — just opacity fade + stroke-dashoffset draw. The same <button> node is
+    // reused across states so the swap slot and its widths persist.
     function ApplyBtn({applied,onApply}){
       const ref=useRef(null);
-      const lastW=useRef(0);     // width captured while showing "Apply"
       const prev=useRef(applied);
+      // measure both labels once (after fonts/layout) and pin the two slot widths
+      // so the swap can tween between "Apply" and the checked "Applied".
       useLayoutEffect(()=>{
         const btn=ref.current;if(!btn)return;
+        const sw=btn.querySelector(".tl-apply-swap"); if(!sw) return;
+        const measure=()=>{
+          const a=sw.querySelector(".tl-apply-a"), b=sw.querySelector(".tl-apply-b");
+          if(a) sw.style.setProperty("--aw-a", Math.ceil(a.getBoundingClientRect().width)+"px");
+          if(b) sw.style.setProperty("--aw-b", Math.ceil(b.getBoundingClientRect().width)+"px");
+        };
+        measure();
+        if(document.fonts&&document.fonts.ready) document.fonts.ready.then(measure).catch(()=>{});
+      },[]);
+      // drive the stroke-draw: set exact dasharray, and play on the flip to applied.
+      // already-applied items mount fully drawn (data-state stays "in", no replay).
+      useLayoutEffect(()=>{
+        const btn=ref.current;if(!btn)return;
+        const chk=btn.querySelector(".tl-sug-check");
         const justApplied=applied&&!prev.current;
-        if(applied){
-          const chk=btn.querySelector(".tl-sug-check");
-          if(chk){
-            const path=chk.querySelector("svg path");
-            if(path){ const len=Math.ceil(path.getTotalLength());   // exact path length
-              path.style.strokeDasharray=len; path.style.strokeDashoffset=len; }
+        if(chk){
+          const path=chk.querySelector("svg path");
+          if(path){ const len=Math.ceil(path.getTotalLength());   // exact path length
+            path.style.strokeDasharray=len; path.style.strokeDashoffset=len; }
+          if(applied){
             if(justApplied){
-              // card-resize: explicit from(old "Apply") -> to(new auto) width tween
-              const to=btn.getBoundingClientRect().width, from=lastW.current;
-              if(from&&to&&Math.abs(from-to)>0.5){
-                btn.style.width=from+"px";
-                void btn.offsetWidth;          // reflow so the tween starts from `from`
-                btn.style.width=to+"px";
-                const onEnd=(e)=>{ if(e.target===btn&&e.propertyName==="width"){
-                  btn.style.width=""; btn.removeEventListener("transitionend",onEnd); } };
-                btn.addEventListener("transitionend",onEnd);
-              }
-              // success-check replay: reset, force reflow, play from offset 0
+              // replay from offset 0: reset, force reflow, play
               chk.setAttribute("data-state","out");
               void chk.offsetWidth;
               chk.setAttribute("data-state","in");
             } else { chk.setAttribute("data-state","in"); }
-          }
-        } else { lastW.current=btn.getBoundingClientRect().width; }
+          } else { chk.setAttribute("data-state","out"); }
+        }
         prev.current=applied;
       });
-      if(applied) return h("button",{ref,className:"tl-pill-btn tl-apply-btn is-applied",disabled:true},
-        h("span",{className:"tl-sug-check","data-state":"out","aria-hidden":"true"},
-          h("svg",{width:13,height:13,viewBox:"0 0 16 16",fill:"none",
-            xmlns:"http://www.w3.org/2000/svg",style:{display:"block"}},
-            h("path",{d:"M4 8.4268L6.46155 11.19223L12 4.97001",stroke:"currentColor",
-              strokeWidth:1.5,strokeLinecap:"round",strokeLinejoin:"round"}))),
-        "Applied");
-      return h("button",{ref,className:"tl-pill-btn tl-apply-btn",onClick:onApply},"Apply");
+      return h("button",{ref,
+        className:cx("tl-pill-btn tl-apply-btn",applied&&"is-applied"),
+        disabled:applied,onClick:applied?undefined:onApply},
+        h("span",{className:"tl-apply-swap","data-state":applied?"applied":"apply"},
+          h("span",{className:"tl-apply-label tl-apply-a"},"Apply"),
+          h("span",{className:"tl-apply-label tl-apply-b"},
+            h("span",{className:"tl-sug-check","data-state":"out","aria-hidden":"true"},
+              h("svg",{width:13,height:13,viewBox:"0 0 16 16",fill:"none",
+                xmlns:"http://www.w3.org/2000/svg",style:{display:"block"}},
+                h("path",{d:"M4 8.4268L6.46155 11.19223L12 4.97001",stroke:"currentColor",
+                  strokeWidth:1.5,strokeLinecap:"round",strokeLinejoin:"round"}))),
+            "Applied")));
     }
     function RefineResults({suggestions,appliedIds,onApply,lanes}){
       const ref=useRef(null);
@@ -2037,10 +2120,14 @@
       const noMatches=!!ql&&fGroups.length===0&&fFlat.length===0;
       const phaseItem=(e)=>h(MenuItem,{key:e.id,active:active&&e.id===active.id,onClick:()=>{onSelect(e.id);setPick(false);},
         right:active&&e.id===active.id&&h("span",{className:"tl-menu-check"},h(Ic,{name:"accept"}))},
-        h("span",null,e.phaseLabel,h("span",{className:"tl-menu-dim"}," "+e.durationMs+"ms")));
+        h("span",{className:"tl-menu-stack"},
+          h("span",{className:"tl-menu-text"},e.phaseLabel),
+          h("span",{className:"tl-menu-dim tl-menu-sub"},e.durationMs+"ms")));
       const flatItem=(e)=>h(MenuItem,{key:e.id,active:active&&e.id===active.id,onClick:()=>{onSelect(e.id);setPick(false);},
         right:active&&e.id===active.id&&h("span",{className:"tl-menu-check"},h(Ic,{name:"accept"}))},
-        h("span",null,e.label,h("span",{className:"tl-menu-dim"}," "+e.durationMs+"ms")));
+        h("span",{className:"tl-menu-stack"},
+          h("span",{className:"tl-menu-text"},e.label),
+          h("span",{className:"tl-menu-dim tl-menu-sub"},e.durationMs+"ms")));
       return h("div",{className:"tl-header"},
         h("span",{className:"tl-header-label"},"Selected"),
         h("button",{ref:pickRef,className:cx("tl-ghost-btn",pick&&"is-active"),disabled:!active,onClick:()=>setPick(v=>!v)},
@@ -2064,7 +2151,10 @@
                   ...fFlat.map(flatItem))),
         h("span",{className:"tl-header-count"},
           scanning
-            ? h("span",{className:"tl-scanning-row"},h(DotmLoader),h("span",null,"Scanning transitions…"))
+            ? h("span",{className:"t-tt-wrap"},
+                h("span",{className:"tl-scan-note",tabIndex:0},"Agent scanning transitions…"),
+                h("span",{className:"t-tt tl-tt-below tl-tt-msg",role:"tooltip"},
+                  "Agent is working on understanding your transitions and creating grouping and naming. This usually takes a few seconds to a minute."))
             : entries.length+" transition"+(entries.length===1?"":"s")+" found"),
         h("button",{ref:gearRef,className:cx("tl-icon-btn",setg&&"is-active"),title:"Settings",onClick:()=>setSetg(v=>!v)},h(Ic,{name:"dotsv"})),
         h(Dropdown,{open:setg,onClose:()=>setSetg(false),triggerRef:gearRef,width:210,align:"right"},
@@ -2232,7 +2322,10 @@
     // fill the width, while PAD_Y keeps the 0..1 band vertically centered with
     // equal headroom above/below so overshoot/undershoot handles (clamped to the
     // -0.5..1.5 range) stay visible instead of being clipped at the edges.
-    const CURVE = { VBW:269, VBH:150, PAD_X:30, PAD_Y:42 };
+    // square plot with equal padding on all sides — standard cubic-bezier
+    // graph ratio (easing.dev): the 0→1 region is a square, centered, with
+    // matching overshoot headroom above 1 and below 0.
+    const CURVE = { VBW:240, VBH:240, PAD_X:48, PAD_Y:48 };
 
     // Unified "Preview" section (Figma node 580:11158) — collapsible, collapsed by
     // default (transitions.dev · 21-accordion). Holds BOTH the timing curve card
@@ -2243,6 +2336,7 @@
       const trackRef = useRef(null);
       const dotRef = useRef(null);
       const svgRef = useRef(null);
+      const playSwapRef = useRef(null);
       const [playing, setPlaying] = useState(false);
       const [open, setOpen] = useState(false);
       const safeEasing = (!easing || easing.trim()==="") ? "linear" : easing;
@@ -2316,6 +2410,20 @@
         return ()=>{ cancelled = true; if(anim){try{anim.cancel();}catch{}} if(timer)clearTimeout(timer); };
       },[playing, open, safeEasing, dur]);
 
+      // measure both labels once the panel is open (fonts/layout ready) and
+      // pin the two widths so the slot can tween between them on toggle.
+      useEffect(()=>{
+        if(!open) return;
+        const sw = playSwapRef.current; if(!sw) return;
+        const measure = ()=>{
+          const a = sw.querySelector(".tl-play-a"), b = sw.querySelector(".tl-play-b");
+          if(a) sw.style.setProperty("--pw-a", Math.ceil(a.getBoundingClientRect().width)+"px");
+          if(b) sw.style.setProperty("--pw-b", Math.ceil(b.getBoundingClientRect().width)+"px");
+        };
+        measure();
+        if(document.fonts&&document.fonts.ready) document.fonts.ready.then(measure).catch(()=>{});
+      },[open]);
+
       const p1x = fx(cb[0]), p1y = fy(cb[1]), p2x = fx(cb[2]), p2y = fy(cb[3]);
 
       return h("div",{className:"tl-preview","data-open":open?"true":"false"},
@@ -2346,7 +2454,10 @@
               ),
               h("div",{className:"tl-preview-sub"},
                 h("span",{className:"tl-preview-sub-label"},"Position preview"),
-                h("button",{className:"tl-preview-play",onClick:()=>setPlaying(p=>!p)},playing?"Pause":"Play"),
+                h("button",{className:"tl-preview-play",onClick:()=>setPlaying(p=>!p)},
+                  h("span",{ref:playSwapRef,className:"tl-play-swap","data-state":playing?"pause":"play"},
+                    h("span",{className:"tl-play-label tl-play-a"},"Play"),
+                    h("span",{className:"tl-play-label tl-play-b"},"Pause"))),
               ),
               h("div",{className:"tl-preview-track"},
                 h("div",{className:"tl-preview-rail-wrap",ref:trackRef},
@@ -2730,9 +2841,6 @@
       const[acceptError,setAcceptError]=useState(null);
       // ── grouped scan (agent reads source → Open/Close phases) ──
       const[groupScanState,setGroupScanState]=useState("idle"); // idle | scanning | done | error
-      // Escape hatch for the gate: if a scan errors/times out the user can choose
-      // to proceed with the flat (ungrouped) list instead of being trapped.
-      const[skipGrouping,setSkipGrouping]=useState(false);
       const didGroupScanRef=useRef(false);
       const[refineLabel,setRefineLabel]=useState(null);
       const[appliedIds,setAppliedIds]=useState({});
@@ -3001,7 +3109,11 @@
         setGroupScanState("scanning");
         const raw=flat.map(e=>({label:e.label,selector:e.bindings&&e.bindings.selector,
           properties:e.properties,
-          timings:(e.baseLanes||[]).map(l=>({property:l.property,durationMs:l.durationMs,delayMs:l.delayMs,easing:l.easing}))}));
+          timings:(e.baseLanes||[]).map(l=>({property:l.property,durationMs:l.durationMs,delayMs:l.delayMs,easing:l.easing})),
+          // CSS rules (base + open + close states) for this element, var()s
+          // resolved — lets the agent recover the opposite phase + toggled state
+          // without reading source. Empty → agent falls back to source reads.
+          cssRules:harvestCssHints(e)}));
         try{
           const{id}=await relayCreateJob({kind:"scan",url:location.href,raw});
           for(let i=0;i<500;i++){
@@ -3027,7 +3139,6 @@
       const rescanTransitions=useCallback(()=>{
         try{localStorage.removeItem(GROUP_STORE_KEY);}catch{}
         registry.clearGroups();
-        setSkipGrouping(false); // re-engage the gate so a fresh scan can be shown
         runGroupScan();
       },[runGroupScan,GROUP_STORE_KEY,registry]);
       // Gate the auto group-scan behind a live agent: the panel stays on the
@@ -3087,16 +3198,13 @@
       // scanned the page's transitions.
       //   loading    → first /health probe pending (blank, avoids a text flash)
       //   blocked    → no live agent → "Before we start" (run /refine live)
-      //   scanning   → live agent, scan in flight → "Agent is scanning…"
-      //   scan-error → scan failed/timed out → recoverable (retry / continue)
-      //   ready      → live + scan settled (done or idle, or user skipped) → real UI
-      // NOTE: "idle" and "error" must NOT keep us on the scanning screen, or a
-      // timed-out scan (e.g. an older /refine-live skill that can't answer scan
-      // jobs) would trap the panel forever with no way out.
+      //   ready      → live agent → the real UI, immediately. The group scan runs
+      //                in the BACKGROUND (no blocking screen); progress shows as a
+      //                small "Agent scanning transitions…" note in the header count
+      //                slot. A failed scan just leaves the flat list (Rescan in
+      //                Settings to retry) — it never traps the panel.
       const gate = !live
         ? (llmAvailable===null ? "loading" : "blocked")
-        : groupScanState==="scanning" ? "scanning"
-        : (groupScanState==="error" && !skipGrouping) ? "scan-error"
         : "ready";
       return h(React.Fragment,null,
         render&&h("div",{className:"t-panel-slide","data-timeline-panel":true,
@@ -3124,25 +3232,7 @@
                       h("div",{className:"tl-gate-title"},"Before we start"),
                       h("p",{className:"tl-gate-text"},
                         "Please run the ",h("code",{className:"tl-code"},"/refine live"),
-                        " command in your agent to enable live features, such as scanning and refining transitions."))),
-                  gate==="scanning" && h("div",{className:"tl-gate"},
-                    h("div",{className:"tl-gate-col"},
-                      h("div",{className:"tl-gate-pill-wrap"},
-                        h(BorderBeam,{size:"sm",colorVariant:"ocean",theme:"light",borderRadius:18,duration:2.6,saturation:2,brightness:1.6,className:"tl-gate-beam"},
-                          h("span",{className:"tl-gate-beam-fill"})),
-                        h("span",{className:"tl-gate-pill"},
-                          h(DotmLoader),
-                          h("span",{className:"tl-gate-pill-label"},"Agent is scanning your transitions"))),
-                      h("p",{className:"tl-gate-sub"},"Just a moment while we get things ready."))),
-                  gate==="scan-error" && h("div",{className:"tl-gate"},
-                    h("div",{className:"tl-gate-col"},
-                      h("div",{className:"tl-gate-title"},"We couldn’t scan your transitions"),
-                      h("p",{className:"tl-gate-text"},
-                        "The agent didn’t finish grouping. Make sure ",h("code",{className:"tl-code"},"/refine live"),
-                        " is running with the latest skill, then try again — or continue with the ungrouped list."),
-                      h("div",{className:"tl-gate-actions"},
-                        h("button",{className:"tl-gate-btn tl-gate-btn-primary",onClick:rescanTransitions},"Try again"),
-                        h("button",{className:"tl-gate-btn",onClick:()=>setSkipGrouping(true)},"Continue without grouping"))))),
+                        " command in your agent to enable live features, such as scanning and refining transitions.")))),
             toast&&createPortal(
               h("div",{className:"tl-toast-wrap","aria-live":"polite"},
                 h("div",{className:cx("tl-toast",toast.closing&&"is-closing")},
