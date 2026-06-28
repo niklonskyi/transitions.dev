@@ -244,7 +244,7 @@
       padding: 6px 10px 6px 16px;
       font-family: "Inter", system-ui, -apple-system, sans-serif;
       cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-      box-shadow: var(--drop), var(--ring); transition: background 0.15s, scale 0.12s ease;
+      box-shadow: var(--shadow-btn); transition: background 0.15s, scale 0.12s ease;
       animation: tl-pill-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
     @keyframes tl-pill-in { from { opacity: 0; transform: translateY(6px) scale(0.96); }
       to { opacity: 1; transform: none; } }
@@ -369,7 +369,7 @@
     .tl-insp-title { display: flex; align-items: center; font-size: 13px; font-weight: 500; line-height: 18px; color: #171717; margin-bottom: 16px; text-transform: capitalize; }
     /* full-bleed divider between the Delay field and the Easing/Springs tabs
        (Figma 580:9049 — spans the inspector edge-to-edge past the 16px padding) */
-    .tl-inspector-divider { height: 1px; background: var(--c-line); margin: 0 -16px; }
+    .tl-inspector-divider { height: 1px; background: var(--c-line); margin: 4px -16px; }
     .tl-insp-label { font-size: 12px; line-height: 18px; color: #737373; margin: 10px 0 6px; }
 
     /* ── tracks / ruler ── */
@@ -528,9 +528,11 @@
     .tl-select-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tl-select-chev { display: flex; color: var(--c-ruler); flex: none; }
     /* easing curve — exact Figma (node 580:11158): #f6f6f7, 8px radius, no grid */
+    /* overflow:visible so overshoot handles/lines spill past the box while
+       dragging instead of being clipped to the rectangle. */
     .tl-curve { background: #f6f6f7; border-radius: 8px;
-      padding: 0; position: relative; overflow: hidden; }
-    .tl-curve svg { display: block; cursor: crosshair; width: 100%; height: auto; }
+      padding: 0; position: relative; overflow: visible; }
+    .tl-curve svg { display: block; cursor: crosshair; width: 100%; height: auto; overflow: visible; }
     .tl-curve-handle { cursor: grab; }
     .tl-curve-handle:active { cursor: grabbing; }
     .tl-cubic-row { display: flex; gap: 4px; }
@@ -538,9 +540,9 @@
        32px #f7f7f7 pill, hover overlay + inset focus ring. */
     .tl-cubic-cell { flex: 1; min-width: 0; display: flex; flex-direction: row; align-items: center;
       gap: 4px; height: 32px; box-sizing: border-box;
-      padding: 0 8px; border-radius: 8px; background: #f7f7f7;
+      padding: 0 8px; border-radius: 8px; background: var(--c-field-bg);
       box-shadow: inset 0 0 0 0 rgba(0,0,0,0.14); transition: box-shadow 0.12s ease, background 0.12s ease; }
-    .tl-cubic-cell:hover { background: linear-gradient(rgba(170,170,170,0.2),rgba(170,170,170,0.2)), #f7f7f7; }
+    .tl-cubic-cell:hover { background: var(--c-sec-h); }
     .tl-cubic-cell:focus-within { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.14); }
     .tl-cubic-row input { flex: 1; min-width: 0; width: 100%; height: 100%; border: none; background: transparent;
       box-sizing: border-box; padding: 0; text-align: left;
@@ -682,9 +684,10 @@
     .tl-menu-item:focus-visible { outline: none; background: #fff; box-shadow: inset 0 0 0 1px rgba(0,115,229,0.4); }
     .tl-menu-item.disabled { color: var(--c-disabled); pointer-events: none; }
     .tl-menu-item-label { flex: 1; min-width: 0; display: flex; align-items: center; }
-    .tl-menu-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .tl-menu-stack { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .tl-menu-sub { font-size: 11px; line-height: 14px; }
+    .tl-menu-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tl-menu-stack { flex: 1; min-width: 0; display: flex; flex-direction: row; align-items: baseline; gap: 6px; }
+    .tl-menu-stack .tl-menu-text { flex: 0 1 auto; }
+    .tl-menu-sub { flex: 0 0 auto; font-size: 13px; line-height: 18px; }
     .tl-menu-dim { color: #979797; }
     .tl-menu-check { display: flex; color: var(--c-text-strong); flex: none; }
     .tl-menu-empty { padding: 10px 8px; color: var(--c-disabled); font-size: 13px; }
@@ -705,6 +708,70 @@
     .tl-menu-head-ver { flex: none; line-height: 14px; font-variant-numeric: tabular-nums; }
     /* trailing chevron on link rows (Figma 581:2828 — #696969 right chevron) */
     .tl-menu-chevr { display: flex; flex: none; color: #696969; }
+
+    /* ── settings dropdown sub-page slider (transitions.dev · 08-page-side-by-side) ──
+       One dropdown surface that pages internally: main settings ↔ keyboard
+       shortcuts. Both pages stay mounted so they can cross-slide; the surface
+       height follows the active page (card-resize-style) so it grows/shrinks
+       smoothly instead of jumping. Page 1 exits left, page 2 exits right. */
+    .tl-set-slide.t-page-slide {
+      position: relative;
+      --page-slide-dur: 250ms;            /* Fast — page slide */
+      --page-fade-dur: 250ms;
+      --page-slide-distance: 8px;         /* Base distance */
+      --page-blur: 3px;                   /* Medium blur */
+      --page-stagger: 0ms;
+      --page-exit-enabled: 1;
+      --page-slide-ease: cubic-bezier(0.22, 1, 0.36, 1);  /* Smooth ease out */
+      --page-fade-ease: cubic-bezier(0.22, 1, 0.36, 1);
+      transition: height var(--page-slide-dur) var(--page-slide-ease);
+      overflow: hidden;
+    }
+    .tl-set-slide .t-page[data-page-id="1"] { --t-page-from-x: calc(var(--page-slide-distance) * -1); }
+    .tl-set-slide .t-page[data-page-id="2"] { --t-page-from-x: var(--page-slide-distance); }
+    .tl-set-slide .t-page {
+      position: absolute; top: 0; left: 0; right: 0;
+      opacity: 0; pointer-events: none;
+      transform: translateX(calc(var(--t-page-from-x, 0px) * var(--page-exit-enabled)));
+      filter: blur(calc(var(--page-blur) * var(--page-exit-enabled)));
+      transition:
+        opacity   var(--page-fade-dur)  var(--page-fade-ease),
+        transform var(--page-slide-dur) var(--page-slide-ease),
+        filter    var(--page-slide-dur) var(--page-slide-ease);
+      will-change: opacity, transform, filter;
+    }
+    .tl-set-slide[data-page="1"] .t-page[data-page-id="1"],
+    .tl-set-slide[data-page="2"] .t-page[data-page-id="2"] {
+      opacity: 1; pointer-events: auto; transform: translateX(0); filter: blur(0);
+      transition-delay: var(--page-stagger);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .tl-set-slide.t-page-slide,
+      .tl-set-slide .t-page { transition: none !important; }
+    }
+    /* sub-page back header — mirrors the menu-item row metrics (h-32, rounded-8,
+       13/16 label) so the surface feels continuous between pages. */
+    .tl-set-back { display: flex; align-items: center; gap: 4px; width: 100%; box-sizing: border-box;
+      min-height: 32px; padding: 0 8px 0 4px; border: none; background: transparent; border-radius: 8px;
+      font: inherit; font-size: 13px; font-weight: 500; line-height: 16px; color: #1b1b1b;
+      cursor: pointer; text-align: left; transition: background 0.1s ease, box-shadow 0.1s ease; }
+    .tl-set-back:hover { background: #f4f4f5; }
+    .tl-set-back:active { background: #ededee; }
+    .tl-set-back:focus-visible { outline: none; background: #fff; box-shadow: inset 0 0 0 1px rgba(0,115,229,0.4); }
+    /* reuse the right chevron flipped to point back; the menu chevron color */
+    .tl-set-back-ic { display: flex; flex: none; color: #696969; transform: scaleX(-1); }
+    .tl-set-back-title { flex: 1; min-width: 0; }
+    /* shortcut row — label left, keycap cluster right; same h-32 rhythm as rows */
+    .tl-kbd-row { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      min-height: 32px; padding: 0 8px; font-size: 13px; line-height: 16px; color: #1b1b1b; }
+    .tl-kbd-row-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tl-kbd-cluster { display: flex; align-items: center; gap: 4px; flex: none; }
+    .tl-kbd-plus { color: #b8b8b8; font-size: 11px; line-height: 1; }
+    /* keycap — hairline via inset shadow (shadows over borders), tabular monospace */
+    .tl-kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px;
+      padding: 0 5px; box-sizing: border-box; border-radius: 5px; background: #f4f4f5;
+      box-shadow: inset 0 0 0 1px #ececed; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+      font-size: 11px; line-height: 1; font-weight: 500; color: #4c4c4c; font-variant-numeric: tabular-nums; }
 
     /* ═════ transitions.dev — menu dropdown (verbatim) ═════ */
     .t-dropdown {
@@ -808,6 +875,8 @@
     }
     /* below-variant for triggers near the panel top edge */
     .t-tt.tl-tt-below { bottom: auto; top: calc(100% + 8px); transform-origin: 50% 0; font-size: 12px; }
+    /* small gray shortcut hint inside a tooltip (matches the cheat-sheet keys) */
+    .tl-tt-kbd { margin-left: 8px; opacity: 0.4; }
     /* multi-line message variant (e.g. Accept error) — long text wraps to a
        readable measure instead of one overflowing line. Right-anchored so the
        wide bubble grows leftward and never clips off the panel edge. Mirrors the
@@ -899,7 +968,7 @@
     .pc-btn.primary:hover { background: #000; }
 
     .tl-refine-btn.is-active { color: var(--c-blue-pressed); }
-    .tl-refine-btn.is-active::before { background: color(display-p3 0 0.451 0.898 / 0.12); }
+    .tl-refine-btn.is-active::before { background: var(--c-blue-bg-a); background: color(display-p3 0 0.451 0.898 / 0.12); }
 
     /* refine panel slides in from the right using transitions.dev panel reveal
        tokens (translate + opacity + cross-blur, per-phase open/close dur/ease). */
@@ -967,8 +1036,10 @@
       width: 36px; height: 36px; border: none; background: transparent; border-radius: 60px; cursor: pointer;
       color: #676767; transition: background 0.14s ease, color 0.14s ease; }
     .tl-refine-close:hover { background: rgba(170,170,170,0.10); color: #17181c; }
-    /* refine-type tabs (Small refinements / Replace transition) */
-    .tl-refine-tabs { flex: 0 0 auto; display: flex; align-items: center; gap: 5px; padding: 17px 16px 0; }
+    /* refine-type tabs — toolbar strip (Figma 587:9258): 48px white bar, hairline
+       bottom divider, segments inset 16px and packed gap:0 like a segmented control */
+    .tl-refine-tabs { flex: 0 0 auto; box-sizing: border-box; display: flex; align-items: center; gap: 0;
+      height: 48px; padding: 0 16px; background: #fff; border-bottom: 1px solid #f0f0f0; }
     .tl-refine-tab { height: 32px; padding: 6px 12px; border: none; background: transparent; cursor: pointer;
       border-radius: 8px; font: inherit; font-size: 13px; font-weight: 500; line-height: 14px; color: #676767;
       transition: background 0.14s ease, color 0.14s ease; }
@@ -1131,10 +1202,16 @@
     @keyframes tl-dotm-e { 0%{opacity:1} 16.667%{opacity:.52} 33.333%{opacity:.08} 50%{opacity:.52} 66.667%{opacity:.08} 83.333%{opacity:.52} 100%{opacity:1} }
     @keyframes tl-dotm-f { 0%{opacity:.08} 16.667%{opacity:1} 33.333%{opacity:.52} 50%{opacity:.08} 66.667%{opacity:.52} 83.333%{opacity:1} 100%{opacity:.08} }
     @keyframes tl-dotm-g { 0%{opacity:.08} 16.667%{opacity:.52} 33.333%{opacity:.08} 50%{opacity:.08} 66.667%{opacity:.08} 83.333%{opacity:.52} 100%{opacity:.08} }
-    /* background-scan note in the header count slot — plain text, hover for the
-       tooltip explaining what the agent is doing. Dotted underline hints it. */
+    /* background-scan note in the header count slot — dot-matrix loader + shimmer
+       text (transitions.dev shimmer text 15). Hover shows the tooltip. */
+    /* the tooltip wrap fills the count slot's height; center its content so the
+       loader + text sit on the slot's vertical midline instead of its bottom. */
+    .tl-header-count .t-tt-wrap { display: inline-flex; align-items: center; align-self: center; }
     .tl-scan-note { cursor: help; color: var(--c-count);
-      text-decoration: underline dotted rgba(0,0,0,0.28); text-underline-offset: 2px; }
+      display: inline-flex; align-items: center; gap: 6px; }
+    .tl-scan-note .tl-dotm { width: 14px; height: 14px; }
+    .tl-scan-shimmer { --shimmer-dur: 2000ms; --shimmer-base: var(--c-count); --shimmer-highlight: #17181c;
+      --shimmer-band: 400%; --shimmer-ease: linear; }
     /* loading status text — transitions.dev shimmer text (15) + text states swap (04) */
     .tl-refine-status-text {
       --shimmer-dur: 2000ms; --shimmer-base: #9a9a9a; --shimmer-highlight: #17181c;
@@ -1217,32 +1294,46 @@
     /* applied state — GRAY, never green (matches Accept icon --c-text #17181c) */
     .tl-pill-btn.is-applied { color: var(--c-text); cursor: default; }
     .tl-pill-btn.is-applied svg path { stroke: var(--c-text); }
-    /* Apply ⟷ Applied: cross-blur text swap — same mechanism as the Play/Pause
-       button above (and the index Copy → Copied tooltip). Both words stack in one
-       slot; the active one is sharp/opaque, the other blurred/transparent, and they
-       cross-blur in place while the slot width tweens between the two measured widths.
-       The "Applied" label (b) carries the success check to the left of its text. */
-    .tl-apply-swap { position: relative; display: inline-block; vertical-align: middle;
-      line-height: 14px; width: var(--aw-a, auto);
-      transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1); }
-    .tl-apply-swap[data-state="applied"] { width: var(--aw-b, auto); }
-    .tl-apply-label { white-space: pre;
+    /* Apply ⟷ Applied: a LEADING check is revealed first and pushes the text to
+       the right, then the differing SUFFIX cross-blurs. The shared stem "Appl"
+       stays put while "y" ⟷ "ied" cross-blur in a slot whose width tweens between
+       the two measured widths. Both the leading check space AND the suffix slot
+       use the SAME resize token (--apply-resize-*: card resize, smooth ease out),
+       so the whole button grows in one synchronized motion. The check lives in its
+       own overflow:hidden box whose width tweens 0 -> (icon + gap), shoving the
+       text rightward — the check itself stroke-draws IN PLACE (no translate). */
+    .tl-apply-swap { position: relative; display: inline-flex; align-items: center;
+      vertical-align: middle; line-height: 14px;
+      --apply-resize-dur: 400ms; --apply-resize-ease: cubic-bezier(0.22, 1, 0.36, 1); }
+    /* leading check slot: collapsed to width 0 at rest; expands to the measured
+       icon+gap width (--chk-w) when applied, using the same token as the suffix
+       resize. overflow:hidden clips the pinned-left check so it reveals in place
+       (left edge fixed) rather than translating. */
+    .tl-apply-check { display: inline-flex; align-items: center; overflow: hidden;
+      flex: 0 0 auto; width: 0;
+      transition: width var(--apply-resize-dur) var(--apply-resize-ease); }
+    .tl-apply-swap[data-state="applied"] .tl-apply-check { width: var(--chk-w, 19px); }
+    .tl-apply-stem { display: inline-block; }
+    .tl-apply-suffix { position: relative; display: inline-block; width: var(--sfx-y, auto);
+      transition: width var(--apply-resize-dur) var(--apply-resize-ease); }
+    .tl-apply-swap[data-state="applied"] .tl-apply-suffix { width: var(--sfx-ied, auto); }
+    .tl-apply-seg { white-space: pre;
       transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1),
                   filter 180ms cubic-bezier(0.22, 1, 0.36, 1);
       will-change: opacity, filter; }
-    .tl-apply-a { display: inline-block; }
-    .tl-apply-b { position: absolute; top: 0; left: 0; display: inline-flex;
-      align-items: center; gap: 6px; }
-    .tl-apply-swap .tl-apply-a { opacity: 1; filter: blur(0); }
-    .tl-apply-swap .tl-apply-b { opacity: 0; filter: blur(2px); }
-    .tl-apply-swap[data-state="applied"] .tl-apply-a { opacity: 0; filter: blur(2px); }
-    .tl-apply-swap[data-state="applied"] .tl-apply-b { opacity: 1; filter: blur(0); }
+    .tl-apply-y { display: inline-block; }
+    .tl-apply-ied { position: absolute; top: 0; left: 0; display: inline-block; }
+    .tl-apply-swap .tl-apply-y { opacity: 1; filter: blur(0); }
+    .tl-apply-swap .tl-apply-ied { opacity: 0; filter: blur(2px); }
+    .tl-apply-swap[data-state="applied"] .tl-apply-y { opacity: 0; filter: blur(2px); }
+    .tl-apply-swap[data-state="applied"] .tl-apply-ied { opacity: 1; filter: blur(0); }
     @media (prefers-reduced-motion: reduce) {
-      .tl-apply-swap, .tl-apply-label { transition: none !important; }
+      .tl-apply-suffix, .tl-apply-seg { transition: none !important; }
     }
     /* success check (transitions.dev 10-success-check): stroke-draw on the path with
        a plain opacity fade — IN PLACE, no rotate / Y-bob / scale, so the check never
-       moves while it draws. GRAY stroke. */
+       moves while it draws. It is the leading element, unclipped by the .tl-apply-check
+       width tween that pushes the text. GRAY stroke. */
     .tl-sug-check { display: inline-flex; opacity: 0; will-change: opacity; }
     .tl-sug-check svg { display: block; overflow: visible; }
     /* stroke-dasharray = path.getTotalLength() of ICONS.accept "M4 8.4268 L6.46155
@@ -1278,6 +1369,7 @@
       .tl-refine-results .t-stagger-line { transition: none !important; }
       .t-resize, .tl-scan-morph { transition: none !important; }
       .tl-pill-btn.tl-apply-btn { transition: background 0.12s ease, scale 0.12s ease, opacity 0.12s ease !important; }
+      .tl-apply-check { transition: none !important; }
       .tl-sug-check { animation: none !important; opacity: 1; }
       .tl-sug-check svg path { animation: none !important; stroke-dashoffset: 0 !important; }
       .tl-scan-face { transition: none !important; }
@@ -1530,7 +1622,10 @@
       _sched(){if(this.rafId!==null)return;this.rafId=requestAnimationFrame(()=>{this.rafId=null;if(this.running&&!this.paused)this.scan();});}
       scan(){const seen=new Map();const w=document.createTreeWalker(this.root,NodeFilter.SHOW_ELEMENT);let n=w.currentNode;while(n){if(n instanceof HTMLElement)this._proc(n,seen);n=w.nextNode();}this.registry.replaceAll(Array.from(seen.values()));}
       _proc(el,seen){
-        if(el.closest("[data-timeline-panel]"))return;
+        // Skip the Refine UI itself: the panel ([data-timeline-panel]) plus any of
+        // our surfaces that portal OUT of it (dropdown menus, toasts) — those carry
+        // [data-tl-ui]. Without this the scanner lists the tool's own transitions.
+        if(el.closest("[data-timeline-panel],[data-tl-ui]"))return;
         const s=getComputedStyle(el); const rp=s.transitionProperty;
         if(!rp||rp==="none"||rp==="all")return;
         const props=rp.split(",").map(p=>p.trim());
@@ -1748,7 +1843,7 @@
       const origin=pos?pos.origin:"top-left";
       const cls=closing?"is-closing":shown?"is-open":"";
       return createPortal(
-        h("div",{ref,className:cx("t-dropdown","tl-menu",cls),"data-origin":origin,style},children),
+        h("div",{ref,className:cx("t-dropdown","tl-menu",cls),"data-origin":origin,"data-tl-ui":"",style},children),
         target);
     }
 
@@ -1757,6 +1852,32 @@
         left,
         h("span",{className:"tl-menu-item-label"},children),
         right);
+    }
+
+    // Settings dropdown body that pages between the main menu and the keyboard-
+    // shortcuts cheat-sheet (transitions.dev · 08-page-side-by-side). Both pages
+    // stay mounted so they cross-slide; the container height follows the active
+    // page so the one dropdown surface resizes smoothly between pages. Lives
+    // inside the Dropdown portal, so its layout effect fires when the surface
+    // mounts (the parent Header doesn't re-render on the portal's own mount).
+    function SettingsSlide({view,mainPage,shortcutsPage,onBack,onClose}){
+      const slideRef=useRef(null), p1=useRef(null), p2=useRef(null);
+      useLayoutEffect(()=>{
+        const slide=slideRef.current; if(!slide) return;
+        const active=view==="shortcuts"?p2.current:p1.current;
+        if(active) slide.style.height=active.offsetHeight+"px";
+      });
+      // Escape steps back from the sub-page first, then closes the dropdown —
+      // mirrors the picker's nested-dismiss behaviour.
+      useEffect(()=>{
+        const onKey=e=>{ if(e.key!=="Escape")return;
+          if(view==="shortcuts"){onBack&&onBack();} else {onClose&&onClose();} };
+        document.addEventListener("keydown",onKey);
+        return()=>document.removeEventListener("keydown",onKey);
+      },[view,onBack,onClose]);
+      return h("div",{ref:slideRef,className:"tl-set-slide t-page-slide","data-page":view==="shortcuts"?"2":"1"},
+        h("div",{ref:p1,className:"tl-set-page t-page","data-page-id":"1","aria-hidden":view==="shortcuts"},mainPage),
+        h("div",{ref:p2,className:"tl-set-page t-page","data-page-id":"2","aria-hidden":view!=="shortcuts"},shortcutsPage));
     }
 
     // ── refine relay client ──
@@ -1825,25 +1946,32 @@
       const names=[...new Set(matches.map(t=>t.member))];
       return names.length===1?names[0]:matches[0].member;
     }
-    // Apply button — "Apply" ⟷ "Applied" cross-blur text swap (transitions.dev 04,
-    // same mechanism as the Play/Pause button): both labels stack in one slot, the
-    // active one is sharp/opaque and the other blurred/transparent, and the slot
-    // width tweens between the two measured widths (--aw-a -> --aw-b). The gray
-    // checkmark draws its stroke path IN PLACE (transitions.dev 10, no rotate/bob/
-    // scale) — just opacity fade + stroke-dashoffset draw. The same <button> node is
-    // reused across states so the swap slot and its widths persist.
+    // Apply button — "Apply" ⟷ "✓ Applied". On apply, a LEADING gray check is
+    // revealed first and pushes the text to the right: .tl-apply-check tweens its
+    // width 0 -> (icon + 6px gap) using the SAME resize token as the suffix slot
+    // (--apply-resize-*, smooth ease out), so the check expansion + the "y" -> "ied"
+    // suffix resize grow the button in one synchronized motion. The stem "Appl"
+    // stays put and "y" ⟷ "ied" cross-blur (transitions.dev 04). The check itself
+    // stroke-draws IN PLACE (transitions.dev 10, no rotate/bob/scale/translate) —
+    // it is pinned to the slot's left edge and the overflow clip reveals it, so it
+    // never translates. The same <button> node is reused across states.
     function ApplyBtn({applied,onApply}){
       const ref=useRef(null);
       const prev=useRef(applied);
-      // measure both labels once (after fonts/layout) and pin the two slot widths
-      // so the swap can tween between "Apply" and the checked "Applied".
+      // measure both suffixes once (after fonts/layout) and pin the two slot widths
+      // so the suffix can tween between "y" and the checked "ied".
       useLayoutEffect(()=>{
         const btn=ref.current;if(!btn)return;
         const sw=btn.querySelector(".tl-apply-swap"); if(!sw) return;
+        const CHK_GAP=6; // space between the leading check and "Applied"
         const measure=()=>{
-          const a=sw.querySelector(".tl-apply-a"), b=sw.querySelector(".tl-apply-b");
-          if(a) sw.style.setProperty("--aw-a", Math.ceil(a.getBoundingClientRect().width)+"px");
-          if(b) sw.style.setProperty("--aw-b", Math.ceil(b.getBoundingClientRect().width)+"px");
+          const y=sw.querySelector(".tl-apply-y"), ied=sw.querySelector(".tl-apply-ied");
+          if(y) sw.style.setProperty("--sfx-y", Math.ceil(y.getBoundingClientRect().width)+"px");
+          if(ied) sw.style.setProperty("--sfx-ied", Math.ceil(ied.getBoundingClientRect().width)+"px");
+          // leading check slot target width = icon natural width + gap; it stays
+          // measurable even while clipped (the inner .tl-sug-check keeps its size).
+          const chk=sw.querySelector(".tl-sug-check");
+          if(chk) sw.style.setProperty("--chk-w", (Math.ceil(chk.getBoundingClientRect().width)+CHK_GAP)+"px");
         };
         measure();
         if(document.fonts&&document.fonts.ready) document.fonts.ready.then(measure).catch(()=>{});
@@ -1873,14 +2001,16 @@
         className:cx("tl-pill-btn tl-apply-btn",applied&&"is-applied"),
         disabled:applied,onClick:applied?undefined:onApply},
         h("span",{className:"tl-apply-swap","data-state":applied?"applied":"apply"},
-          h("span",{className:"tl-apply-label tl-apply-a"},"Apply"),
-          h("span",{className:"tl-apply-label tl-apply-b"},
+          h("span",{className:"tl-apply-check"},
             h("span",{className:"tl-sug-check","data-state":"out","aria-hidden":"true"},
               h("svg",{width:13,height:13,viewBox:"0 0 16 16",fill:"none",
                 xmlns:"http://www.w3.org/2000/svg",style:{display:"block"}},
                 h("path",{d:"M4 8.4268L6.46155 11.19223L12 4.97001",stroke:"currentColor",
-                  strokeWidth:1.5,strokeLinecap:"round",strokeLinejoin:"round"}))),
-            "Applied")));
+                  strokeWidth:1.5,strokeLinecap:"round",strokeLinejoin:"round"})))),
+          h("span",{className:"tl-apply-stem"},"Appl"),
+          h("span",{className:"tl-apply-suffix"},
+            h("span",{className:"tl-apply-seg tl-apply-y"},"y"),
+            h("span",{className:"tl-apply-seg tl-apply-ied"},"ied"))));
     }
     function RefineResults({suggestions,appliedIds,onApply,lanes}){
       const ref=useRef(null);
@@ -1923,7 +2053,7 @@
                   : h(React.Fragment,null,
                       s.title&&h("div",{className:"tl-sug-title"},s.title),
                       (s.from||s.to)&&h("div",{className:"tl-sug-delta"},
-                        s.from&&h("span",{className:"tl-sug-from"},s.from),
+              s.from&&h("span",{className:"tl-sug-from"},s.from),
                         s.to&&h("span",{className:"tl-sug-to"},s.to))),
                 s.reason&&h("div",{className:"tl-sug-reason"},s.reason)),
               applyBtn));
@@ -2096,9 +2226,24 @@
       return out;
     }
 
-    function Header({entries,active,onSelect,onReset,onCopy,copied,snap,setSnap,onMinimize,onRefine,refineActive,onAccept,acceptState,acceptDisabled,acceptError,scanning,onRescan}){
-      const[pick,setPick]=useState(false);
+    function Header({entries,active,onSelect,onReset,onCopy,copied,snap,setSnap,onMinimize,onRefine,refineActive,onAccept,acceptState,acceptDisabled,acceptError,scanning,onRescan,pick,setPick}){
       const[setg,setSetg]=useState(false);
+      // settings dropdown sub-page (main menu ↔ keyboard-shortcuts cheat sheet)
+      const[settingsView,setSettingsView]=useState("main"); // "main" | "shortcuts"
+      const isMac=typeof navigator!=="undefined"&&/mac/i.test((navigator.userAgentData&&navigator.userAgentData.platform)||navigator.platform||navigator.userAgent||"");
+      const modKey=isMac?"Cmd":"Ctrl";
+      // small gray shortcut hint appended inside a tooltip (e.g. "⌘A")
+      const ttHint=(k)=>h("span",{className:"tl-tt-kbd"},(isMac?"\u2318":"Ctrl ")+k);
+      // ⌫ = Backspace, ↑/↓ = arrows; letters/Enter shown verbatim
+      const SHORTCUTS=[
+        {label:"Accept changes",k:"Enter"},
+        {label:"Reset values",k:"\u232B"},
+        {label:"Copy values",k:"C"},
+        {label:"Toggle Refine panel",k:"E"},
+        {label:"Open transition picker",k:"K"},
+        {label:"Previous transition",k:"\u2191"},
+        {label:"Next transition",k:"\u2193"},
+      ];
       const pickRef=useRef(null), gearRef=useRef(null);
       const[q,setQ]=useState("");
       useEffect(()=>{if(!pick)setQ("");},[pick]); // reset search when the picker closes
@@ -2152,28 +2297,50 @@
         h("span",{className:"tl-header-count"},
           scanning
             ? h("span",{className:"t-tt-wrap"},
-                h("span",{className:"tl-scan-note",tabIndex:0},"Agent scanning transitions…"),
+                h("span",{className:"tl-scan-note",tabIndex:0},
+                  h(DotmLoader),
+                  h("span",{className:"t-shimmer tl-scan-shimmer","data-text":"Agent scanning transitions…"},"Agent scanning transitions…")),
                 h("span",{className:"t-tt tl-tt-below tl-tt-msg",role:"tooltip"},
                   "Agent is working on understanding your transitions and creating grouping and naming. This usually takes a few seconds to a minute."))
             : entries.length+" transition"+(entries.length===1?"":"s")+" found"),
         h("button",{ref:gearRef,className:cx("tl-icon-btn",setg&&"is-active"),title:"Settings",onClick:()=>setSetg(v=>!v)},h(Ic,{name:"dotsv"})),
-        h(Dropdown,{open:setg,onClose:()=>setSetg(false),triggerRef:gearRef,width:210,align:"right"},
-          h("div",{className:"tl-menu-head"},
-            h("span",null,"Transitions.dev ",h("span",{className:"tl-menu-head-name"},"Refine")),
-            h("span",{className:"tl-menu-head-ver"},REFINE_VERSION)),
-          h("div",{className:"tl-menu-divider"}),
-          h(MenuItem,{disabled:!active,onClick:()=>{onCopy&&onCopy();setSetg(false);},
-            left:h("span",{className:"tl-menu-icon"},h(Ic,{name:"copy"})),
-            right:copied&&h("span",{className:"tl-menu-check"},h(Ic,{name:"accept"}))},copied?"Copied":"Copy values"),
-          h(MenuItem,{disabled:scanning,onClick:()=>{setSetg(false);onRescan&&onRescan();},
-            left:h("span",{className:"tl-menu-icon"},h(Ic,{name:"restart"}))},
-            scanning?"Rescanning…":"Rescan transitions"),
-          h("div",{className:"tl-menu-divider"}),
-          h(MenuItem,{onClick:()=>{setSetg(false);window.open("https://transitions.dev","_blank","noopener");},
-            right:h("span",{className:"tl-menu-chevr"},h(Ic,{name:"chevronr",size:16}))},"Learn more")),
+        h(Dropdown,{open:setg,onClose:()=>{setSetg(false);setSettingsView("main");},triggerRef:gearRef,width:240,align:"right"},
+          h(SettingsSlide,{view:settingsView,
+            onBack:()=>setSettingsView("main"),
+            onClose:()=>{setSetg(false);setSettingsView("main");},
+            // ── main settings page ──
+            mainPage:h(React.Fragment,null,
+              h("div",{className:"tl-menu-head"},
+                h("span",null,"Transitions.dev ",h("span",{className:"tl-menu-head-name"},"Refine")),
+                h("span",{className:"tl-menu-head-ver"},REFINE_VERSION)),
+              h("div",{className:"tl-menu-divider"}),
+              h(MenuItem,{disabled:!active,onClick:()=>{onCopy&&onCopy();setSetg(false);},
+                left:h("span",{className:"tl-menu-icon"},h(Ic,{name:"copy"})),
+                right:copied&&h("span",{className:"tl-menu-check"},h(Ic,{name:"accept"}))},copied?"Copied":"Copy values"),
+              h(MenuItem,{disabled:scanning,onClick:()=>{setSetg(false);onRescan&&onRescan();},
+                left:h("span",{className:"tl-menu-icon"},h(Ic,{name:"restart"}))},
+                scanning?"Rescanning…":"Rescan transitions"),
+              h(MenuItem,{onClick:()=>setSettingsView("shortcuts"),
+                right:h("span",{className:"tl-menu-chevr"},h(Ic,{name:"chevronr",size:16}))},"Keyboard shortcuts"),
+              h("div",{className:"tl-menu-divider"}),
+              h(MenuItem,{onClick:()=>{setSetg(false);window.open("https://transitions.dev","_blank","noopener");},
+                right:h("span",{className:"tl-menu-chevr"},h(Ic,{name:"chevronr",size:16}))},"Learn more")),
+            // ── keyboard-shortcuts sub-page ──
+            shortcutsPage:h(React.Fragment,null,
+              h("button",{type:"button",className:"tl-set-back",onClick:()=>setSettingsView("main")},
+                h("span",{className:"tl-set-back-ic"},h(Ic,{name:"chevronr",size:16})),
+                h("span",{className:"tl-set-back-title"},"Keyboard shortcuts")),
+              h("div",{className:"tl-menu-divider"}),
+              ...SHORTCUTS.map((s,i)=>h("div",{key:i,className:"tl-kbd-row"},
+                h("span",{className:"tl-kbd-row-label"},s.label),
+                h("span",{className:"tl-kbd-cluster"},
+                  h("kbd",{className:"tl-kbd"},modKey),
+                  h("span",{className:"tl-kbd-plus"},"+"),
+                  h("kbd",{className:"tl-kbd"},s.k)))))}),
+          ),
         h("span",{className:"t-tt-wrap"},
           h("button",{className:"tl-sec-btn t-tt-trigger",disabled:!active,onClick:onReset},"Reset"),
-          h("span",{className:"t-tt tl-tt-below",role:"tooltip"},"Reset values")),
+          h("span",{className:"t-tt tl-tt-below",role:"tooltip"},"Reset values",ttHint("\u232B"))),
         h("span",{className:"t-tt-wrap"},
           h("button",{className:cx("tl-accept-btn",acceptState==="saving"&&"is-saving",acceptState==="done"&&"is-done"),
             disabled:!active||acceptDisabled||acceptState==="saving"||acceptState==="done",onClick:onAccept,"aria-label":"Accept changes to your code"},
@@ -2185,8 +2352,9 @@
             acceptState==="error"&&acceptError?acceptError
               :acceptState==="done"?"Saved to your code"
               :acceptDisabled?"No changes to save"
-              :"Save changes to your codebase")),
-        h("button",{className:cx("tl-refine-btn",refineActive&&"is-active"),disabled:!active,onClick:onRefine},
+              :h(React.Fragment,null,"Save changes to your codebase",ttHint("A")))),
+        h("span",{className:"t-tt-wrap"},
+          h("button",{className:cx("tl-refine-btn t-tt-trigger",refineActive&&"is-active"),disabled:!active,onClick:onRefine},
             h(Ic,{name:"wand"}),
             h("span",{className:"tl-refine-sparks","aria-hidden":"true"},
               h("i",{style:{"--ox":"-1px","--oy":"-3px","--sx":"0px","--sy":"-11px","--sd":"900ms","--sdelay":"0ms"}}),
@@ -2200,7 +2368,10 @@
               h("i",{style:{"--ox":"-5px","--oy":"-2px","--sx":"-9px","--sy":"-9px","--sd":"930ms","--sdelay":"180ms"}}),
               h("i",{style:{"--ox":"3px","--oy":"1px","--sx":"12px","--sy":"1px","--sd":"980ms","--sdelay":"300ms"}})),
             h("span",null,"Refine")),
-        h("button",{className:"tl-icon-btn ghost",title:"Minimize",onClick:onMinimize},h(Ic,{name:"minimize"})),
+          h("span",{className:"t-tt tl-tt-below",role:"tooltip"},"Refine",ttHint("R"))),
+        h("span",{className:"t-tt-wrap"},
+          h("button",{className:"tl-icon-btn ghost t-tt-trigger","aria-label":"Minimize",onClick:onMinimize},h(Ic,{name:"minimize"})),
+          h("span",{className:"t-tt tl-tt-below",role:"tooltip"},"Minimize",ttHint("."))),
       );
     }
 
@@ -2317,15 +2488,12 @@
     }
 
     // shared plot geometry for both the easing curve and the spring curve.
-    // Compact, landscape box: small horizontal padding (bezier x is clamped 0..1
-    // so there is no horizontal overshoot to reserve room for) makes the curve
-    // fill the width, while PAD_Y keeps the 0..1 band vertically centered with
-    // equal headroom above/below so overshoot/undershoot handles (clamped to the
-    // -0.5..1.5 range) stay visible instead of being clipped at the edges.
-    // square plot with equal padding on all sides — standard cubic-bezier
-    // graph ratio (easing.dev): the 0→1 region is a square, centered, with
-    // matching overshoot headroom above 1 and below 0.
-    const CURVE = { VBW:240, VBH:240, PAD_X:48, PAD_Y:48 };
+    // Square plot with equal padding on all sides (standard cubic-bezier graph
+    // ratio, easing.dev): the 0→1 region is centered with identical top/bottom
+    // (and left/right) margins. The box no longer reserves room for overshoot —
+    // overshoot/undershoot handles overflow the box freely (the curve container
+    // is overflow:visible) so dragging is never clamped to the rectangle.
+    const CURVE = { VBW:240, VBH:240, PAD_X:24, PAD_Y:24 };
 
     // Unified "Preview" section (Figma node 580:11158) — collapsible, collapsed by
     // default (transitions.dev · 21-accordion). Holds BOTH the timing curve card
@@ -2828,6 +2996,9 @@
       const[panelHeight,setPanelHeight]=useState(440);
       const[resizing,setResizing]=useState(false);
       const[snap,setSnap]=useState(true);
+      // transition picker open state — lifted out of Header so the panel-focused
+      // Cmd/Ctrl+K shortcut can open it.
+      const[pickOpen,setPickOpen]=useState(false);
       // ── refine ──
       const[refineOpen,setRefineOpen]=useState(false);
       const[refinePhase,setRefinePhase]=useState("idle"); // idle | scanning | done | error
@@ -2836,6 +3007,10 @@
       const[refineSuggestions,setRefineSuggestions]=useState([]);
       const[refineSummary,setRefineSummary]=useState(null);
       const[refineError,setRefineError]=useState(null);
+      // deterministic scans answer almost instantly, so enforce a 2s floor on the
+      // "scanning" phase for that mode only (LLM scans stay immediate).
+      const scanStartedAtRef=useRef(0);
+      const scanModeRef=useRef("llm");
       // ── accept (write to source) ──
       const[acceptState,setAcceptState]=useState("idle"); // idle | saving | done | error
       const[acceptError,setAcceptError]=useState(null);
@@ -2878,12 +3053,14 @@
       // "Start scanning" resolves availability first, then posts the job.
       const startScan=useCallback(async()=>{
         if(!active)return;
+        scanStartedAtRef.current=Date.now();
         setRefinePhase("scanning");setRefineLog([]);
         setRefineSuggestions([]);setRefineSummary(null);setRefineError(null);
         setAppliedIds({});setRefineLabel(active.label);setRefineJobId(null);
         const j=await refreshHealth();
         const avail=j?!!j.llmAvailable:false;
         const mode=(refineMode==="llm"&&!avail)?"deterministic":refineMode;
+        scanModeRef.current=mode;
         if(mode!==refineMode)setRefineMode(mode);
         try{
           const et=active.effectiveTimings||[];
@@ -2912,7 +3089,14 @@
             const job=await relayGetJob(refineJobId);
             if(!live)return;
             if(Array.isArray(job.statusLog))setRefineLog(job.statusLog);
-            if(job.status==="done"){setRefineSuggestions((job.result&&job.result.suggestions)||[]);setRefineSummary(job.result&&job.result.summary);setRefinePhase("done");return;}
+            if(job.status==="done"){
+              const finish=()=>{if(!live)return;setRefineSuggestions((job.result&&job.result.suggestions)||[]);setRefineSummary(job.result&&job.result.summary);setRefinePhase("done");};
+              // deterministic mode floors the scanning phase at 2s so it doesn't flash by.
+              const minMs=scanModeRef.current==="deterministic"?2000:0;
+              const wait=Math.max(0,minMs-(Date.now()-scanStartedAtRef.current));
+              if(wait>0){to=setTimeout(finish,wait);}else{finish();}
+              return;
+            }
             if(job.status==="error"){setRefineError(job.error||"The agent reported an error.");setRefinePhase("error");return;}
             to=setTimeout(tick,500);
           }catch(e){if(live){setRefineError("Lost connection to the relay.");setRefinePhase("error");}}
@@ -2951,7 +3135,7 @@
         if(typeof document==="undefined")return;
         const applied=liveAppliedRef.current;
         const desired=new Map(); // el → css
-        const add=(els,css)=>{ for(const el of els){ if(!el||(el.closest&&el.closest("[data-timeline-panel]")))continue; desired.set(el,css); } };
+        const add=(els,css)=>{ for(const el of els){ if(!el||(el.closest&&el.closest("[data-timeline-panel],[data-tl-ui]")))continue; desired.set(el,css); } };
         for(const item of entries){
           const ov=registry.getPropOverrides(item.id);
           if(!ov||!Object.keys(ov).length)continue; // only edited transitions go live
@@ -3019,8 +3203,29 @@
         }else{
           text="transition: "+et.map(decl).join(",\n       ")+";";
         }
-        navigator.clipboard.writeText(text).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1500);}).catch(()=>{});
-        showToast("Values copied");
+        const onCopied=()=>{setCopied(true);setTimeout(()=>setCopied(false),1500);showToast("Values copied");};
+        const onCopyFail=()=>{showToast("Couldn't copy");};
+        // navigator.clipboard needs a secure context (https/localhost); when the
+        // host page is plain http — or Safari blocks the async API — fall back to
+        // a hidden-textarea execCommand("copy") so copy still works everywhere.
+        const legacyCopy=()=>{
+          try{
+            const ta=document.createElement("textarea");
+            ta.value=text; ta.setAttribute("readonly","");
+            ta.style.position="fixed"; ta.style.top="-9999px"; ta.style.opacity="0";
+            document.body.appendChild(ta);
+            ta.focus(); ta.select();
+            try{ta.setSelectionRange(0,text.length);}catch(e){}
+            const ok=document.execCommand("copy");
+            document.body.removeChild(ta);
+            ok?onCopied():onCopyFail();
+          }catch(e){onCopyFail();}
+        };
+        try{
+          if(navigator.clipboard&&navigator.clipboard.writeText){
+            navigator.clipboard.writeText(text).then(onCopied).catch(legacyCopy);
+          }else legacyCopy();
+        }catch(e){legacyCopy();}
       },[active,showToast]);
       const resetOverrides=useCallback(()=>{if(active)registry.clearOverride(active.id);},[registry,active]);
       // Accept → send an "apply" job so the agent writes the edited timings into
@@ -3203,27 +3408,93 @@
       //                small "Agent scanning transitions…" note in the header count
       //                slot. A failed scan just leaves the flat list (Rescan in
       //                Settings to retry) — it never traps the panel.
+      // ── keyboard shortcuts (panel-focused, Cmd/Ctrl based) ──
+      // Fire only when the panel is focused or hovered so we never hijack the
+      // host app. A latest-values ref keeps the single window listener stable.
+      const panelRootRef=useRef(null);
+      const hoveredRef=useRef(false);
+      const panelHotRef=useRef(false);
+      const recomputeHot=useCallback(()=>{
+        const el=panelRootRef.current;
+        panelHotRef.current=hoveredRef.current||!!(el&&document.activeElement&&el.contains(document.activeElement));
+      },[]);
+      const kbdRef=useRef({});
+      kbdRef.current={entries,active,acceptState,acceptDisabled:computeChanges(active).length===0,minimized,
+        openRefine,resetOverrides,copyValues,onAccept,setActiveId,setMinimized,setPickOpen};
+      useEffect(()=>{
+        const onKey=e=>{
+          const mod=e.metaKey||e.ctrlKey;
+          if(!mod)return;
+          const L=kbdRef.current;
+          // Cmd+. always restores a minimized panel (panel root isn't in the DOM
+          // then, so the hot/input gates can't apply). All other combos require
+          // the panel to be focused/hovered and not typing in a field.
+          const isRestore=e.key==="."&&L.minimized;
+          recomputeHot();
+          if(!isRestore){
+            if(!panelHotRef.current)return;
+            const t=e.target;
+            if(t&&(t.tagName==="INPUT"||t.tagName==="TEXTAREA"||t.isContentEditable))return;
+          }
+          const handle=fn=>{e.preventDefault();e.stopPropagation();fn&&fn();};
+          switch(e.key){
+            case"a":case"A": // Accept changes (same enabled condition as the Accept button)
+              handle(()=>{if(L.active&&!L.acceptDisabled&&L.acceptState!=="saving"&&L.acceptState!=="done")L.onAccept&&L.onAccept();});
+              break;
+            case"Backspace": // Reset values
+              handle(()=>{if(L.active)L.resetOverrides&&L.resetOverrides();});
+              break;
+            case"c":case"C":{ // Copy values — only when no text is selected (native copy wins otherwise)
+              const sel=window.getSelection();
+              if(sel&&!sel.isCollapsed)return;
+              handle(()=>{if(L.active)L.copyValues&&L.copyValues();});
+              break;}
+            case"r":case"R": // Toggle Refine panel
+              handle(()=>{if(L.active)L.openRefine&&L.openRefine();});
+              break;
+            case"k":case"K": // Open transition picker
+              handle(()=>{if(L.active)L.setPickOpen&&L.setPickOpen(true);});
+              break;
+            case"ArrowUp":
+            case"ArrowDown":{ // Previous / next transition
+              const list=L.entries||[];
+              if(!list.length)break;
+              const dir=e.key==="ArrowUp"?-1:1;
+              const cur=L.active?list.findIndex(x=>x.id===L.active.id):-1;
+              let ni=cur<0?(dir>0?0:list.length-1):cur+dir;
+              ni=Math.max(0,Math.min(list.length-1,ni));
+              if(list[ni])handle(()=>L.setActiveId&&L.setActiveId(list[ni].id));
+              break;}
+            case".": // Minimize / restore panel
+              handle(()=>L.setMinimized&&L.setMinimized(v=>!v));
+              break;
+          }
+        };
+        window.addEventListener("keydown",onKey);
+        return()=>window.removeEventListener("keydown",onKey);
+      },[recomputeHot]);
       const gate = !live
         ? (llmAvailable===null ? "loading" : "blocked")
         : "ready";
       return h(React.Fragment,null,
-        render&&h("div",{className:"t-panel-slide","data-timeline-panel":true,
+        render&&h("div",{className:"t-panel-slide","data-timeline-panel":true,ref:panelRootRef,
+            onMouseEnter:()=>{hoveredRef.current=true;},onMouseLeave:()=>{hoveredRef.current=false;},
             "data-open":panelOpen?"true":"false","data-phase":phase,style:{height:panelHeight+"px"}},
           h("div",{className:cx("tl-resize-handle",resizing&&"dragging"),onMouseDown:startResize,title:"Drag to resize"}),
           h("div",{className:"tl-panel-body"},
             gate==="ready"
               ? h(React.Fragment,null,
-                  h("div",{className:"tl-panel-main"},
-                    h(Header,{entries,active,onSelect:setActiveId,onReset:resetOverrides,onCopy:copyValues,copied,
-                      snap,setSnap,onMinimize:()=>setMinimized(true),onRefine:openRefine,refineActive:refineOpen,
-                      onAccept,acceptState,acceptDisabled:computeChanges(active).length===0,acceptError,
-                      scanning:groupScanState==="scanning",onRescan:rescanTransitions}),
-                    active
-                      ?h(Body,{entry:active,onPropChange:(prop,o)=>setPropOverride(prop,o),snap})
-                      :h("div",{className:"tl-empty"},"Select a transition to inspect and edit it")),
-                  h(RefinePanel,{open:refineOpen,onClose:()=>setRefineOpen(false),phase:refinePhase,label:refineLabel,
-                    refineType,onType:changeRefineType,suggestions:refineSuggestions,summary:refineSummary,error:refineError,
-                    appliedIds,onApply:applySuggestion,onApplyAll:applyAllSuggestions,
+            h("div",{className:"tl-panel-main"},
+              h(Header,{entries,active,onSelect:setActiveId,onReset:resetOverrides,onCopy:copyValues,copied,
+                snap,setSnap,onMinimize:()=>setMinimized(true),onRefine:openRefine,refineActive:refineOpen,
+                onAccept,acceptState,acceptDisabled:computeChanges(active).length===0,acceptError,
+                scanning:groupScanState==="scanning",onRescan:rescanTransitions,pick:pickOpen,setPick:setPickOpen}),
+              active
+                ?h(Body,{entry:active,onPropChange:(prop,o)=>setPropOverride(prop,o),snap})
+                :h("div",{className:"tl-empty"},"Select a transition to inspect and edit it")),
+            h(RefinePanel,{open:refineOpen,onClose:()=>setRefineOpen(false),phase:refinePhase,label:refineLabel,
+              refineType,onType:changeRefineType,suggestions:refineSuggestions,summary:refineSummary,error:refineError,
+              appliedIds,onApply:applySuggestion,onApplyAll:applyAllSuggestions,
                     mode:refineMode,onMode:changeRefineMode,llmAvailable,cliInstalled,onStart:startScan,
                     lanes:active?.effectiveTimings||[]}))
               : h("div",{className:"tl-panel-main"},
@@ -3234,15 +3505,17 @@
                         "Please run the ",h("code",{className:"tl-code"},"/refine live"),
                         " command in your agent to enable live features, such as scanning and refining transitions.")))),
             toast&&createPortal(
-              h("div",{className:"tl-toast-wrap","aria-live":"polite"},
+              h("div",{className:"tl-toast-wrap","data-tl-ui":"","aria-live":"polite"},
                 h("div",{className:cx("tl-toast",toast.closing&&"is-closing")},
                   h("span",{className:"tl-toast-ic"},
                     toast.loader?h(DotmLoader):h(Ic,{name:"accept",size:14})),
-                  h("span",null,toast.msg))),
+                  toast.loader
+                    ? h("span",{className:"t-shimmer tl-scan-shimmer","data-text":toast.msg},toast.msg)
+                    : h("span",null,toast.msg))),
               document.body),
           ),
         ),
-        minimized&&h("div",{className:"tl-pill",onClick:()=>setMinimized(false)},
+        minimized&&h("div",{className:"tl-pill","data-tl-ui":"",onClick:()=>setMinimized(false)},
           h("span",{className:"tl-pill-label"},"Transitions"),
           h("span",{className:cx("tl-pill-count",String(entries.length).length===1&&"is-single")},entries.length)),
       );
