@@ -450,9 +450,9 @@ const APPENDED_JS = `
             h("path",{d:"M4 6l4 4 4-4",stroke:"currentColor",strokeWidth:1.6,strokeLinecap:"round",strokeLinejoin:"round"}))),
         h("div",{className:"wd-dd-menu",role:"menu","data-origin":"top-left","aria-hidden":open?"false":"true"},
           h("div",{className:"wd-dd-menu-title"},"Actions"),
-          item("New file"),
-          item("Refresh"),
-          item("Settings")));
+          item("Item 1"),
+          item("Item 2"),
+          item("Item 3")));
     }
 
     // Website App — models the demo App: a scanned demo-root + the TimelinePanel.
