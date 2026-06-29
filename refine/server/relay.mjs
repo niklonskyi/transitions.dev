@@ -138,13 +138,6 @@ const PENDING_TIMEOUT_MS = Number(process.env.REFINE_PENDING_TIMEOUT_MS) || 1200
 // to stop (it returns {stop:true} from /jobs/next). 0 disables. Only the chat
 // loop is affected — a wired REFINE_AGENT_CMD never polls /jobs/next.
 const POLLER_IDLE_STOP_MS = Number(process.env.REFINE_POLLER_IDLE_STOP_MS) || 600000;
-// While the Stop latch is held, a genuinely new `/refine live` session can resume
-// itself implicitly: only after polling has been *quiet* this long (the old loop
-// actually died) do we treat the next poll as a fresh session and auto-resume.
-// Must exceed a looping agent's poll gap, so an agent that ignores Stop and keeps
-// polling can never clear the latch — it just keeps getting {stop:true}. (An
-// updated agent also resumes explicitly via POST /poller/start, no wait needed.)
-const STOP_QUIET_MS = Number(process.env.REFINE_STOP_QUIET_MS) || 15000;
 
 /** @type {Map<string, Job>} */
 const jobs = new Map();
@@ -160,9 +153,6 @@ let lastPollAt = 0;
 // re-polls — can never silently revive the session. This is what makes the
 // panel's Stop button stick instead of flipping "Live" back on seconds later.
 let pollerStopped = false;
-// When did a poll last arrive *while latched*? Used to detect that the old loop
-// went quiet so a genuinely new session (or re-run) can auto-resume.
-let lastStoppedPollAt = 0;
 const pollerActive = () => !pollerStopped && now() - lastPollAt < POLLER_TTL_MS;
 const llmAvailable = () => Boolean(agentCmd()) || pollerActive();
 
@@ -740,21 +730,15 @@ const server = createServer(async (req, res) => {
 
   // GET /jobs/next — long-poll claimed by a `/refine live` agent (LLM jobs).
   if (method === "GET" && path === "/jobs/next") {
-    // Stopped latch: a Stop was issued and not yet resumed. Keep telling every
-    // poller to exit and report inactive until either an explicit POST
-    // /poller/start, or polling goes quiet for STOP_QUIET_MS (the old loop died)
-    // and a new poll arrives — only then is it a genuinely fresh session.
-    // A pending job always wins so we never drop real work on the edge.
+    // Stopped latch: a Stop was issued and not yet resumed. STICKY — every poll
+    // gets {stop:true} and the poller reports inactive until an explicit
+    // POST /poller/start (a fresh `/refine live` / loop announcing itself) or a
+    // relay restart. We deliberately do NOT auto-resume on a quiet gap: a stubborn
+    // agent's straggler poll arriving seconds later would be misread as a new
+    // session and flip the panel back to "Live" — which is exactly the bug where
+    // Stop "didn't stick". A pending job still wins so we never drop real work.
     if (pollerStopped && !nextPendingLlm()) {
-      if (lastStoppedPollAt && now() - lastStoppedPollAt >= STOP_QUIET_MS) {
-        // Quiet gap → the previous loop is gone. This poll is a fresh session.
-        pollerStopped = false;
-        lastStoppedPollAt = 0;
-        // fall through to normal handling below (counts as live again)
-      } else {
-        lastStoppedPollAt = now(); // a poller is still hammering us → hold the latch
-        return send(res, 200, { stop: true });
-      }
+      return send(res, 200, { stop: true });
     }
     lastPollAt = now();
     if (!lastJobAt) lastJobAt = now(); // seed idle window on the loop's first poll
@@ -762,8 +746,7 @@ const server = createServer(async (req, res) => {
     // loop to exit. A pending job always wins so we never drop real work.
     if ((stopRequested || (POLLER_IDLE_STOP_MS && now() - lastJobAt >= POLLER_IDLE_STOP_MS)) && !nextPendingLlm()) {
       stopRequested = false;
-      pollerStopped = true; // latch until /poller/start or a quiet gap
-      lastStoppedPollAt = 0;
+      pollerStopped = true; // latch until an explicit /poller/start
       lastJobAt = 0;
       lastPollAt = 0; // loop is exiting → report it inactive immediately on /health
       return send(res, 200, { stop: true });
@@ -773,8 +756,7 @@ const server = createServer(async (req, res) => {
       if (res.writableEnded) return;
       if (stopRequested && !nextPendingLlm()) {
         stopRequested = false;
-        pollerStopped = true; // latch until /poller/start or a quiet gap
-        lastStoppedPollAt = 0;
+        pollerStopped = true; // latch until an explicit /poller/start
         lastJobAt = 0;
         lastPollAt = 0; // loop is exiting → report it inactive immediately on /health
         return send(res, 200, { stop: true });
@@ -797,8 +779,7 @@ const server = createServer(async (req, res) => {
   if (method === "POST" && path === "/poller/stop") {
     const wasActive = now() - lastPollAt < POLLER_TTL_MS;
     stopRequested = true;
-    pollerStopped = true; // latch: stays stopped until /poller/start or a quiet gap
-    lastStoppedPollAt = 0;
+    pollerStopped = true; // latch: stays stopped until an explicit /poller/start
     lastPollAt = 0; // report inactive immediately; a straggler poll won't revive it
     return send(res, 200, { ok: true, stopping: wasActive });
   }
@@ -822,11 +803,10 @@ const server = createServer(async (req, res) => {
 
   // POST /poller/start — a fresh `/refine live` agent (or loop) announces itself
   // and clears the Stop latch so its polls count as live again. Without this an
-  // explicit re-run would have to wait out the quiet window. Call it once at loop
-  // startup, before the first GET /jobs/next.
+  // explicit re-run couldn't resume at all (the sticky latch tells every poll to
+  // stop). Call it once at loop startup, before the first GET /jobs/next.
   if (method === "POST" && path === "/poller/start") {
     pollerStopped = false;
-    lastStoppedPollAt = 0;
     stopRequested = false;
     lastJobAt = now();
     lastPollAt = now();
