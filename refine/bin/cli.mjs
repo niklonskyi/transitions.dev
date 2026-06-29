@@ -19,7 +19,7 @@
 //   4. starts the local refine relay (serves the panel at /inject.js).
 
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync, mkdirSync, cpSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, cpSync, realpathSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
@@ -387,7 +387,19 @@ function main() {
 
 // Run only when invoked as the CLI entry (npx / node bin/cli.mjs), so tests can
 // import the resolver helpers without triggering a live run.
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+// Run only when invoked as the CLI entry (npx / global install / node bin/cli.mjs).
+// We must resolve symlinks: npx and global installs invoke this via a `.bin/refine`
+// symlink, so process.argv[1] is the symlink path while import.meta.url is the real
+// file. Comparing raw paths fails through the symlink and silently skips main().
+function isCliEntry() {
+  if (!process.argv[1]) return false;
+  const self = fileURLToPath(import.meta.url);
+  const resolve = (p) => {
+    try { return realpathSync(p); } catch { return p; }
+  };
+  return resolve(process.argv[1]) === resolve(self);
+}
+if (isCliEntry()) {
   main();
 }
 
