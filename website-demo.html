@@ -110,6 +110,38 @@
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      /* Smooth ease out (transitions.dev) for the demo-page bg toggle */
+      transition: background-color 250ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    /* demo-page-only dark background — independent of the panel's data-tl-theme */
+    body[data-demo-bg="dark"] { background: #121212; }
+    /* the only unavoidable legibility tweak: the bare H1 sits directly on the page bg */
+    body[data-demo-bg="dark"] .demo-header h1 { color: #f5f5f5; }
+
+    /* demo-chrome background toggle — sits beside the Hide-demo button */
+    .demo-bg-toggle {
+      position: fixed; top: 12px; right: 104px; z-index: 2147483000;
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 28px; padding: 0 10px; border-radius: 8px; cursor: pointer;
+      border: 1px solid rgba(0,0,0,0.12); background: #fff; color: #444;
+      font: 500 12px/1 ui-sans-serif, system-ui, sans-serif;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+      transition: background-color 250ms cubic-bezier(0.22, 1, 0.36, 1),
+                  color 250ms cubic-bezier(0.22, 1, 0.36, 1),
+                  border-color 250ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .demo-bg-toggle:hover { border-color: rgba(0,0,0,0.22); }
+    .demo-bg-toggle[aria-pressed="true"] {
+      background: #121212; color: #ededed; border-color: rgba(255,255,255,0.18);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+    .demo-bg-toggle[aria-pressed="true"]:hover { border-color: rgba(255,255,255,0.3); }
+    /* small swatch previewing the bg this toggle controls */
+    .demo-bg-toggle .demo-bg-dot {
+      width: 10px; height: 10px; border-radius: 50%; background: #121212;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25); }
+    @media (prefers-reduced-motion: reduce) {
+      body, .demo-bg-toggle { transition: none; }
     }
 
     .demo-root { max-width: 900px; margin: 0 auto; padding: 24px 24px 120px; }
