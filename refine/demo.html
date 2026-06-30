@@ -1774,7 +1774,8 @@
     /* — panel surfaces — */
     html[data-tl-theme="dark"] .tl-panel-body { background: #1b1b1b;
       box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.05), 0 4px 42px 0 rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(255, 255, 255, 0.04) inset, 0 1px 0 0 rgba(255, 255, 255, 0.02) inset; }
-    html[data-tl-theme="dark"] .tl-refine-inner { background: #1b1b1b; }
+    html[data-tl-theme="dark"] .tl-refine-inner { background: #1b1b1b;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04); }
     /* Refine panel: the parent .tl-panel-body has overflow:hidden, so a full
        surrounding shadow is clipped on every side except the internal left
        edge. Cast a directional LEFT shadow (negative x) so the panel reads as a
@@ -1782,10 +1783,8 @@
        inset for the surface lift. */
     html[data-tl-theme="dark"] .tl-refine-panel {
       box-shadow:
-        -1px 0 0 0 rgba(255, 255, 255, 0.04),
         -4px 0 12px 0 rgba(0, 0, 0, 0.35),
-        -16px 0 42px 0 rgba(0, 0, 0, 0.3),
-        inset 0 1px 0 0 rgba(255, 255, 255, 0.02); }
+        -16px 0 42px 0 rgba(0, 0, 0, 0.3); }
     html[data-tl-theme="dark"] .tl-empty { background: #202020; }
 
     /* — timeline rows / ruler / bars / member chips — */
