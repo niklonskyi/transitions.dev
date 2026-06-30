@@ -3198,10 +3198,11 @@
       #gh-stars-btn { width: auto; padding: 0 12px; }
       .skill-header { padding-top: 64px; }
       .skill-cta-row { flex-wrap: wrap; }
-      /* "See demo" + the demo preview show the desktop-only live demo -
-         hide both on mobile. */
+      /* "See demo" opens the desktop-only INTERACTIVE demo (/website-demo.html),
+         so it stays hidden on mobile. The hero VIDEO preview, however, should
+         still play on mobile (autoplay + muted + playsinline), so it is no
+         longer hidden here. */
       .skill-cta-row .skill-btn--secondary { display: none; }
-      #demo.hero-visual-wrap { display: none; }
       .skill-compare-stage { margin-bottom: 32px; padding: 0 16px; }
       .skill-code-row { padding: 4px 6px 4px 12px; }
       .skill-code-row code { font-size: 12px; line-height: 20px; }
